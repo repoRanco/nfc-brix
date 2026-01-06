@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Formulario Sólidos Solubles + Web NFC</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 14px; margin-bottom: 12px; }
+    .row { display: grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-6 { grid-column: span 6; }
+    label { font-size: 13px; color: #333; display: block; margin-bottom: 6px; }
+    input, select, button, textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+    button { cursor: pointer; }
+    .btn { padding: 10px 12px; border: 0; border-radius: 10px; color: #fff; font-weight: 600; }
+    .btn-primary { background: #2563eb; }
+    .btn-success { background: #16a34a; }
+    .btn-secondary { background: #334155; }
+    .btn:disabled { opacity: .6; cursor: not-allowed; }
+    .muted { color: #666; font-size: 13px; }
+    .alert { background: #fff7ed; border: 1px solid #fed7aa; padding: 10px; border-radius: 10px; color: #9a3412; margin-bottom: 10px; }
+    .ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
+    .table-wrap { overflow: auto; }
+    table { border-collapse: collapse; width: 100%; min-width: 1050px; }
+    th, td { border: 1px solid #ddd; padding: 6px; vertical-align: middle; }
+    th { background: #f8fafc; text-align: center; position: sticky; top: 0; }
+    td:first-child { text-align: center; width: 90px; position: sticky; left: 0; background: #fff; }
+    .small { font-size: 12px; }
+    .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 10px; border-radius: 10px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3 style="text-align:center; margin: 8px 0 14px;">Formulario de Sólidos Solubles (Web NFC)</h3>
+
+    <div id="err" class="alert" style="display:none;"></div>
+    <div id="msg" class="alert ok" style="display:none;"></div>
+
+    <div class="card">
+      <h4 style="margin:0 0 10px;">NFC</h4>
+      <div class="row">
+        <div class="col-6">
+          <button id="btnScan" class="btn btn-primary" type="button">Escanear NFC</button>
+          <div class="muted" style="margin-top:8px;">
+            Requiere Android + Chrome + HTTPS. El escaneo debe iniciarse con este botón.
+          </div>
+        </div>
+        <div class="col-6">
+          <label>Última lectura (debug)</label>
+          <textarea id="rawNfc" rows="4" readonly placeholder="Aquí se mostrará el texto leído desde NFC..."></textarea>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px;">
+        <div class="col-4">
+          <label>DateTime detectado</label>
+          <input id="detDatetime" readonly />
+        </div>
+        <div class="col-4">
+          <label>Brix detectado</label>
+          <input id="detBrix" readonly />
+        </div>
+        <div class="col-4">
+          <label>Temp detectada</label>
+          <input id="detTemp" readonly />
+        </div>
+      </div>
+      <div class="actions">
+        <button id="btnAutoFill" class="btn btn-secondary" type="button">Pegar Brix en siguiente celda</button>
+        <button id="btnClearNfc" class="btn btn-secondary" type="button">Limpiar lectura</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin:0 0 10px;">I. DATOS DE HUERTO</h4>
+      <div class="row">
+        <div class="col-3">
+          <label>Evaluación *</label>
+          <div style="display:flex; gap:10px;">
+            <label style="display:flex; gap:6px; align-items:center; margin:0;">
+              <input type="radio" name="evaluacion" value="ENS"> ENS
+            </label>
+            <label style="display:flex; gap:6px; align-items:center; margin:0;">
+              <input type="radio" name="evaluacion" value="NV"> NV
+            </label>
+          </div>
+        </div>
+        <div class="col-3">
+          <label>Tipo Evaluación *</label>
+          <div style="display:flex; gap:10px;">
+            <label style="display:flex; gap:6px; align-items:center; margin:0;">
+              <input type="radio" name="tipoEvaluacion" value="REC"> REC
+            </label>
+            <label style="display:flex; gap:6px; align-items:center; margin:0;">
+              <input type="radio" name="tipoEvaluacion" value="CM"> CM
+            </label>
+          </div>
+        </div>
+        <div class="col-3">
+          <label>N° Lote *</label>
+          <input id="nLote" placeholder="Ej: R1245" />
+        </div>
+        <div class="col-3">
+          <label>Fecha *</label>
+          <input id="fecha" type="date" />
+        </div>
+
+        <div class="col-6">
+          <label>Productor *</label>
+          <input id="productor" placeholder="Código productor (ej: 1234)" />
+          <div class="muted">Aquí lo dejo libre (sin JSON de mantenedor). Si quieres, lo conectamos a tu Mantenedor.json.</div>
+        </div>
+        <div class="col-6">
+          <label>Variedad *</label>
+          <input id="variedad" placeholder="Variedad" />
+        </div>
+
+        <div class="col-4">
+          <label>Tratamiento</label>
+          <input id="tratamiento" />
+        </div>
+        <div class="col-4">
+          <label>Porta Injerto</label>
+          <input id="portaIngerto" />
+        </div>
+        <div class="col-4">
+          <label>Repetición</label>
+          <input id="repeticion" type="number" />
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin:0 0 10px;">II. Sólido soluble</h4>
+      <div class="table-wrap">
+        <table id="sstTable">
+          <thead>
+            <tr>
+              <th style="white-space:nowrap;">N° de fruto</th>
+              <th>1</th><th>2</th><th>3</th><th>3.3</th><th>3.5</th><th>3.8</th><th>4</th><th>5</th>
+              <th style="white-space:nowrap;">Pardeamiento</th>
+            </tr>
+          </thead>
+          <tbody id="sstBody"></tbody>
+        </table>
+      </div>
+
+      <div class="actions">
+        <button id="btnSend" class="btn btn-success" type="button">Enviar Registro</button>
+        <button id="btnReset" class="btn btn-secondary" type="button">Reset</button>
+      </div>
+
+      <div class="muted small">Reglas: SST 7.0 a 35.0 con 1 decimal. Pardeamiento opcional.</div>
+    </div>
+
+    <div class="card">
+      <h4 style="margin:0 0 10px;">WebSocket (debug)</h4>
+      <div class="row">
+        <div class="col-6">
+          <label>Estado</label>
+          <input id="wsState" readonly />
+        </div>
+        <div class="col-6">
+          <label>Endpoint</label>
+          <input id="wsUrl" readonly />
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label>Último payload enviado</label>
+        <pre id="lastPayload">(vacío)</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =============================
+    // Config
+    // =============================
+    const WS_URL = "wss://iot.ranco.cl/ws4401/ws/envio-form-solidos-solubles";
+    const SST_COLS = ["1","2","3","3.3","3.5","3.8","4","5"];
+    const PARDEAMIENTO_OPS = ["", "Leve", "Moderado", "Severo"];
+
+    // =============================
+    // Helpers UI
+    // =============================
+    const $ = (id) => document.getElementById(id);
+    function showErr(msg) {
+      $("err").style.display = msg ? "block" : "none";
+      $("err").textContent = msg || "";
+    }
+    function showMsg(msg) {
+      $("msg").style.display = msg ? "block" : "none";
+      $("msg").textContent = msg || "";
+      if (msg) setTimeout(() => showMsg(""), 2500);
+    }
+
+    // =============================
+    // Build grid (100 rows)
+    // =============================
+    const grid = []; // each row: { nFruto, sst: {col: number|null}, pardeamiento }
+    function buildGrid() {
+      grid.length = 0;
+      const tbody = $("sstBody");
+      tbody.innerHTML = "";
+
+      for (let i = 1; i <= 100; i++) {
+        const rowObj = { nFruto: i, sst: {}, pardeamiento: "" };
+        SST_COLS.forEach(c => rowObj.sst[c] = null);
+        grid.push(rowObj);
+
+        const tr = document.createElement("tr");
+
+        const tdN = document.createElement("td");
+        tdN.textContent = String(i);
+        tr.appendChild(tdN);
+
+        SST_COLS.forEach((c) => {
+          const td = document.createElement("td");
+          td.style.minWidth = "120px";
+          const inp = document.createElement("input");
+          inp.type = "number";
+          inp.step = "0.1";
+          inp.className = "small";
+          inp.dataset.row = String(i-1);
+          inp.dataset.col = c;
+
+          inp.addEventListener("blur", () => {
+            const r = Number(inp.dataset.row);
+            const col = inp.dataset.col;
+            const raw = inp.value;
+            const v = validateSST(raw);
+            if (v === null) {
+              grid[r].sst[col] = null;
+              inp.value = "";
+              return;
+            }
+            grid[r].sst[col] = v;
+            inp.value = v.toFixed(1);
+          });
+
+          td.appendChild(inp);
+          tr.appendChild(td);
+        });
+
+        const tdP = document.createElement("td");
+        tdP.style.minWidth = "160px";
+        const sel = document.createElement("select");
+        sel.className = "small";
+        PARDEAMIENTO_OPS.forEach(op => {
+          const o = document.createElement("option");
+          o.value = op;
+          o.textContent = op === "" ? "Sin seleccionar" : op;
+          sel.appendChild(o);
+        });
+        sel.addEventListener("change", () => rowObj.pardeamiento = sel.value);
+        tdP.appendChild(sel);
+        tr.appendChild(tdP);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    // Validate SST: keep only 7..35; 1 decimal; allow empty
+    function validateSST(raw) {
+      if (raw === "" || raw === null || raw === undefined) return null;
+      const num = Number(raw);
+      if (Number.isNaN(num)) return null;
+
+      // clamp only if out of range
+      let v = num;
+      if (v > 35) v = 35.0;
+      if (v < 7) v = 7.0;
+
+      // enforce 1 decimal
+      v = Math.round(v * 10) / 10;
+      return v;
+    }
+
+    function findNextEmptyCell() {
+      // Order: row 1..100, col order SST_COLS
+      for (let r = 0; r < grid.length; r++) {
+        for (const c of SST_COLS) {
+          if (grid[r].sst[c] === null) return { r, c };
+        }
+      }
+      return null;
+    }
+
+    function setCell(r, c, value) {
+      grid[r].sst[c] = value;
+      // Find input in DOM
+      const inputs = $("sstBody").querySelectorAll('input[type="number"]');
+      for (const inp of inputs) {
+        if (Number(inp.dataset.row) === r && inp.dataset.col === c) {
+          inp.value = value.toFixed(1);
+          inp.focus();
+          return;
+        }
+      }
+    }
+
+    // =============================
+    // NFC parsing
+    // =============================
+    let lastReading = { datetime: "", brix: "", temp: "", raw: "" };
+
+    function parseNfcText(text) {
+      // Expect something like CSV lines:
+      // "Date Time,Brix [%],Temp [degC]\n2025/12/22 12:45:33,LLL,22.4\n..."
+      // Your screenshot shows Brix sometimes as "LLL/AAA" (not numeric). We'll try to extract a numeric brix if present.
+      const raw = (text || "").trim();
+      let datetime = "";
+      let brix = "";
+      let temp = "";
+
+      // Strategy:
+      // - Find first line that looks like: YYYY/MM/DD HH:MM:SS,<brix>,<temp>
+      // - Use LAST valid line (most recent in text)
+      const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+
+      // Try parse lines with regex
+      const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$/;
+
+      let found = null;
+      for (const line of lines) {
+        const m = line.match(re);
+        if (m) found = { dt: m[1], b: m[2], t: m[3] };
+      }
+
+      if (found) {
+        datetime = found.dt;
+        temp = found.t;
+
+        // brix: try numeric from token (some tags might store "12.3" or "12,3")
+        const bToken = String(found.b).replace(",", ".").trim();
+        const bNum = Number(bToken);
+        if (!Number.isNaN(bNum)) brix = String(bNum);
+        else brix = bToken; // keep raw (e.g., "LLL")
+      } else {
+        // Fallback: just store raw
+      }
+
+      return { datetime, brix, temp, raw };
+    }
+
+    async function scanNfc() {
+      showErr("");
+      showMsg("");
+
+      if (!("NDEFReader" in window)) {
+        showErr("Web NFC no está disponible. Usa Android + Chrome y abre en HTTPS.");
+        return;
+      }
+
+      try {
+        const reader = new NDEFReader();
+        await reader.scan();
+
+        reader.onreadingerror = () => showErr("Error leyendo NFC. Intenta nuevamente.");
+        reader.onreading = (event) => {
+          try {
+            const { message } = event;
+            let textParts = [];
+
+            for (const record of message.records) {
+              // Most common: "text" or "url"
+              if (record.recordType === "text") {
+                const textDecoder = new TextDecoder(record.encoding || "utf-8");
+                textParts.push(textDecoder.decode(record.data));
+              } else if (record.recordType === "url") {
+                // URL record is encoded; try decode as text
+                const td = new TextDecoder("utf-8");
+                textParts.push(td.decode(record.data));
+              } else {
+                // generic decode attempt
+                const td = new TextDecoder("utf-8");
+                textParts.push(td.decode(record.data));
+              }
+            }
+
+            const combined = textParts.join("\n").trim();
+            $("rawNfc").value = combined;
+
+            lastReading = parseNfcText(combined);
+            $("detDatetime").value = lastReading.datetime || "";
+            $("detBrix").value = lastReading.brix || "";
+            $("detTemp").value = lastReading.temp || "";
+
+            showMsg("Lectura NFC recibida.");
+          } catch (e) {
+            showErr("Se leyó NFC pero no se pudo interpretar el contenido.");
+          }
+        };
+
+        showMsg("Acerca la etiqueta NFC al teléfono…");
+      } catch (e) {
+        showErr("No se pudo iniciar el escaneo NFC. Revisa permisos/HTTPS.");
+      }
+    }
+
+    function autofillBrix() {
+      showErr("");
+      const b = $("detBrix").value.trim();
+      if (!b) {
+        showErr("No hay Brix detectado.");
+        return;
+      }
+
+      // brix must be numeric to fill grid
+      const bNum = Number(b.replace(",", "."));
+      if (Number.isNaN(bNum)) {
+        showErr("El Brix leído no es numérico (ej: 'LLL'). Si la etiqueta debe traer número, ajusta el formato NDEF.");
+        return;
+      }
+
+      const v = validateSST(String(bNum));
+      const next = findNextEmptyCell();
+      if (!next) {
+        showErr("La grilla está completa (no hay celdas vacías).");
+        return;
+      }
+
+      setCell(next.r, next.c, v);
+      showMsg(`Brix ${v.toFixed(1)} pegado en fila ${next.r+1}, columna ${next.c}.`);
+    }
+
+    // =============================
+    // WebSocket send
+    // =============================
+    let ws = null;
+    let reconnectTimer = null;
+
+    function wsSetState(txt) {
+      $("wsState").value = txt;
+    }
+
+    function wsConnect() {
+      $("wsUrl").value = WS_URL;
+      if (ws) try { ws.close(); } catch {}
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+
+      wsSetState("Conectando...");
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => wsSetState("Conectado");
+      ws.onerror = () => wsSetState("Error");
+      ws.onclose = () => {
+        wsSetState("Desconectado (reintentando en 3s)");
+        reconnectTimer = setTimeout(wsConnect, 3000);
+      };
+
+      ws.onmessage = (ev) => {
+        // backend might respond JSON or text
+        let data = ev.data;
+        try { data = JSON.parse(ev.data); } catch {}
+        // Mostar respuesta en UI
+        if (data && data.success) showMsg("Servidor respondió: éxito.");
+        else if (data && data.message) showErr("Servidor respondió: " + data.message);
+      };
+    }
+
+    function canSend() {
+      const evalOk = !!document.querySelector('input[name="evaluacion"]:checked');
+      const tipoOk = !!document.querySelector('input[name="tipoEvaluacion"]:checked');
+      const prodOk = $("productor").value.trim() !== "";
+      const varOk = $("variedad").value.trim() !== "";
+      const loteOk = $("nLote").value.trim() !== "";
+      const fechaOk = $("fecha").value !== "";
+      return evalOk && tipoOk && prodOk && varOk && loteOk && fechaOk;
+    }
+
+    function buildPayload() {
+      // Build "form" compatible with your Vue payload shape (same keys)
+      const evaluacion = document.querySelector('input[name="evaluacion"]:checked')?.value || "";
+      const tipoEvaluacion = document.querySelector('input[name="tipoEvaluacion"]:checked')?.value || "";
+
+      const payload = {
+        evaluacion,
+        tipoEvaluacion,
+        productor: $("productor").value.trim(),
+        variedad: $("variedad").value.trim(),
+        nLote: $("nLote").value.trim(),
+        fecha: $("fecha").value,
+        tratamiento: $("tratamiento").value.trim(),
+        portaIngerto: $("portaIngerto").value.trim(),
+        repeticion: $("repeticion").value === "" ? null : Number($("repeticion").value),
+        solidoSoluble: grid.map(r => {
+          const obj = { nFruto: r.nFruto, pardeamiento: r.pardeamiento };
+          SST_COLS.forEach(c => obj["sst_" + c] = r.sst[c]);
+          return obj;
+        }),
+        nfc: {
+          datetime: $("detDatetime").value || "",
+          brix: $("detBrix").value || "",
+          temp: $("detTemp").value || "",
+          raw: $("rawNfc").value || ""
+        },
+        timestamp: new Date().toISOString(),
+        tipoFormulario: "solido_soluble"
+      };
+
+      return payload;
+    }
+
+    function validateBeforeSend() {
+      showErr("");
+      if (!canSend()) {
+        showErr("Complete todos los campos obligatorios (*)");
+        return false;
+      }
+
+      // Validate SST values: 7..35 and 1 decimal
+      for (const r of grid) {
+        for (const c of SST_COLS) {
+          const v = r.sst[c];
+          if (v === null) continue;
+          if (v < 7 || v > 35) {
+            showErr("SST fuera de rango (7.0 a 35.0)");
+            return false;
+          }
+          if (Math.abs(v * 10 - Math.round(v * 10)) > 1e-9) {
+            showErr("SST debe tener solo un decimal");
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    function send() {
+      if (!validateBeforeSend()) return;
+
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        showErr("WebSocket no conectado.");
+        return;
+      }
+
+      const payload = buildPayload();
+      $("lastPayload").textContent = JSON.stringify(payload, null, 2);
+
+      ws.send(JSON.stringify(payload));
+      showMsg("Payload enviado por WebSocket.");
+    }
+
+    function resetAll() {
+      // reset header
+      document.querySelectorAll('input[name="evaluacion"]').forEach(i => i.checked = false);
+      document.querySelectorAll('input[name="tipoEvaluacion"]').forEach(i => i.checked = false);
+      ["productor","variedad","nLote","fecha","tratamiento","portaIngerto","repeticion"].forEach(id => $(id).value = "");
+
+      // reset nfc
+      $("rawNfc").value = "";
+      $("detDatetime").value = "";
+      $("detBrix").value = "";
+      $("detTemp").value = "";
+      lastReading = { datetime:"", brix:"", temp:"", raw:"" };
+
+      // reset grid
+      buildGrid();
+
+      showErr("");
+      showMsg("Formulario reseteado.");
+    }
+
+    // =============================
+    // Init
+    // =============================
+    buildGrid();
+    wsConnect();
+
+    $("btnScan").addEventListener("click", scanNfc);
+    $("btnAutoFill").addEventListener("click", autofillBrix);
+    $("btnClearNfc").addEventListener("click", () => {
+      $("rawNfc").value = "";
+      $("detDatetime").value = "";
+      $("detBrix").value = "";
+      $("detTemp").value = "";
+      showMsg("Lectura limpiada.");
+    });
+
+    $("btnSend").addEventListener("click", send);
+    $("btnReset").addEventListener("click", resetAll);
+
+    // Disable scan button if unsupported
+    if (!("NDEFReader" in window)) {
+      $("btnScan").disabled = true;
+      showErr("Este navegador no soporta Web NFC. Usa Android + Chrome en HTTPS.");
+    }
+  </script>
+</body>
+</html>
