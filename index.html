@@ -12,25 +12,31 @@
     .col-3 { grid-column: span 3; }
     .col-4 { grid-column: span 4; }
     .col-6 { grid-column: span 6; }
+    .col-12 { grid-column: span 12; }
+
     label { font-size: 13px; color: #333; display: block; margin-bottom: 6px; }
-    input, select, button, textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; }
+    input, select, button, textarea { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc; font-size: 14px; box-sizing: border-box; }
     button { cursor: pointer; }
     .btn { padding: 10px 12px; border: 0; border-radius: 10px; color: #fff; font-weight: 600; }
     .btn-primary { background: #2563eb; }
     .btn-success { background: #16a34a; }
     .btn-secondary { background: #334155; }
+    .btn-danger { background: #dc2626; }
     .btn:disabled { opacity: .6; cursor: not-allowed; }
     .muted { color: #666; font-size: 13px; }
     .alert { background: #fff7ed; border: 1px solid #fed7aa; padding: 10px; border-radius: 10px; color: #9a3412; margin-bottom: 10px; }
     .ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; }
-    .table-wrap { overflow: auto; }
-    table { border-collapse: collapse; width: 100%; min-width: 1050px; }
-    th, td { border: 1px solid #ddd; padding: 6px; vertical-align: middle; }
-    th { background: #f8fafc; text-align: center; position: sticky; top: 0; }
-    td:first-child { text-align: center; width: 90px; position: sticky; left: 0; background: #fff; }
-    .small { font-size: 12px; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
     pre { background: #0b1020; color: #e5e7eb; padding: 10px; border-radius: 10px; overflow: auto; }
+
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px; vertical-align: middle; }
+    th { background: #f8fafc; text-align: center; position: sticky; top: 0; }
+    td { text-align: center; }
+    .small { font-size: 12px; }
+
+    .row-selected td { background: #eff6ff; }
+    .clickable { cursor: pointer; font-weight: 700; }
   </style>
 </head>
 <body>
@@ -54,6 +60,7 @@
           <textarea id="rawNfc" rows="4" readonly placeholder="Aquí se mostrará el texto leído desde NFC..."></textarea>
         </div>
       </div>
+
       <div class="row" style="margin-top:10px;">
         <div class="col-4">
           <label>DateTime detectado</label>
@@ -68,8 +75,8 @@
           <input id="detTemp" readonly />
         </div>
       </div>
+
       <div class="actions">
-        <button id="btnSync" class="btn btn-secondary" type="button">Sincronizar dato (último Brix NFC)</button>
         <button id="btnClearNfc" class="btn btn-secondary" type="button">Limpiar lectura</button>
       </div>
     </div>
@@ -88,6 +95,7 @@
             </label>
           </div>
         </div>
+
         <div class="col-3">
           <label>Tipo Evaluación *</label>
           <div style="display:flex; gap:10px;">
@@ -99,10 +107,12 @@
             </label>
           </div>
         </div>
+
         <div class="col-3">
           <label>N° Lote *</label>
           <input id="nLote" placeholder="Ej: R1245" />
         </div>
+
         <div class="col-3">
           <label>Fecha *</label>
           <input id="fecha" type="date" />
@@ -111,8 +121,8 @@
         <div class="col-6">
           <label>Productor *</label>
           <input id="productor" placeholder="Código productor (ej: 1234)" />
-          <div class="muted">Aquí lo dejo libre (sin JSON de mantenedor). Si quieres, lo conectamos a tu Mantenedor.json.</div>
         </div>
+
         <div class="col-6">
           <label>Variedad *</label>
           <input id="variedad" placeholder="Variedad" />
@@ -135,13 +145,22 @@
 
     <div class="card">
       <h4 style="margin:0 0 10px;">II. Sólido soluble</h4>
-      <div class="table-wrap">
-        <table id="sstTable">
+
+      <div class="muted small" style="margin-bottom:10px;">
+        1) Haz clic en el <b>N° de fruto</b> (selecciona la fila).<br/>
+        2) Elige la <b>posición</b> (1..5).<br/>
+        3) Escribe el valor SST <b>o</b> presiona “Usar último NFC”.
+      </div>
+
+      <div style="overflow:auto;">
+        <table>
           <thead>
             <tr>
-              <th style="white-space:nowrap;">N° de fruto</th>
-              <th>1</th><th>2</th><th>3</th><th>3.3</th><th>3.5</th><th>3.8</th><th>4</th><th>5</th>
-              <th style="white-space:nowrap;">Pardeamiento</th>
+              <th style="width:120px;">N° de fruto</th>
+              <th style="width:170px;">Posición (1..5)</th>
+              <th style="width:160px;">SST (valor)</th>
+              <th style="width:220px;">NFC</th>
+              <th style="width:170px;">Pardeamiento</th>
             </tr>
           </thead>
           <tbody id="sstBody"></tbody>
@@ -180,7 +199,7 @@
     // Config
     // =============================
     const WS_URL = "wss://iot.ranco.cl/ws4401/ws/envio-form-solidos-solubles";
-    const SST_COLS = ["1","2","3","3.3","3.5","3.8","4","5"];
+    const POS_OPS = ["1","2","3","3.3","3.5","3.8","4","5"];
     const PARDEAMIENTO_OPS = ["", "Leve", "Moderado", "Severo"];
 
     // =============================
@@ -198,109 +217,114 @@
     }
 
     // =============================
-    // Build grid (100 rows)
+    // Data model
     // =============================
-    const grid = []; // each row: { nFruto, sst: {col: number|null}, pardeamiento }
-    let selectedCell = null; // { r, c }
+    // cada fruto tiene: { nFruto, pos, sst, pardeamiento }
+    const grid = [];
+    let selectedRow = null; // index 0..99
+
+    function validateSST(raw) {
+      if (raw === "" || raw === null || raw === undefined) return null;
+      const num = Number(String(raw).replace(",", "."));
+      if (Number.isNaN(num)) return null;
+
+      let v = num;
+      if (v > 35) v = 35.0;
+      if (v < 7) v = 7.0;
+      v = Math.round(v * 10) / 10;
+      return v;
+    }
 
     function buildGrid() {
       grid.length = 0;
-      selectedCell = null;
+      selectedRow = null;
 
       const tbody = $("sstBody");
       tbody.innerHTML = "";
 
       for (let i = 1; i <= 100; i++) {
-        const rowObj = { nFruto: i, sst: {}, pardeamiento: "" };
-        SST_COLS.forEach(c => rowObj.sst[c] = null);
+        const rowObj = { nFruto: i, pos: "", sst: null, pardeamiento: "" };
         grid.push(rowObj);
 
         const tr = document.createElement("tr");
+        tr.dataset.row = String(i - 1);
 
+        // N° fruto (clic selecciona fila)
         const tdN = document.createElement("td");
         tdN.textContent = String(i);
+        tdN.className = "clickable";
+        tdN.addEventListener("click", () => {
+          selectRow(i - 1);
+        });
         tr.appendChild(tdN);
 
-        SST_COLS.forEach((c) => {
-          const td = document.createElement("td");
-          td.style.minWidth = "120px";
+        // Posición
+        const tdPos = document.createElement("td");
+        const selPos = document.createElement("select");
+        selPos.innerHTML = `<option value="">Seleccione</option>` + POS_OPS.map(p => `<option value="${p}">${p}</option>`).join("");
+        selPos.addEventListener("change", () => rowObj.pos = selPos.value);
+        tdPos.appendChild(selPos);
+        tr.appendChild(tdPos);
 
-          const inp = document.createElement("input");
-          inp.type = "number";
-          inp.step = "0.1";
-          inp.className = "small";
-          inp.dataset.row = String(i-1);
-          inp.dataset.col = c;
-
-          // Selección de celda (solo click/tap)
-          inp.addEventListener("focus", () => {
-            selectedCell = { r: Number(inp.dataset.row), c: inp.dataset.col };
-          });
-          inp.addEventListener("click", () => {
-            selectedCell = { r: Number(inp.dataset.row), c: inp.dataset.col };
-          });
-
-          inp.addEventListener("blur", () => {
-            const r = Number(inp.dataset.row);
-            const col = inp.dataset.col;
-            const raw = inp.value;
-            const v = validateSST(raw);
-            if (v === null) {
-              grid[r].sst[col] = null;
-              inp.value = "";
-              return;
-            }
-            grid[r].sst[col] = v;
-            inp.value = v.toFixed(1);
-          });
-
-          td.appendChild(inp);
-          tr.appendChild(td);
+        // SST input (a la derecha)
+        const tdSst = document.createElement("td");
+        const inpSst = document.createElement("input");
+        inpSst.type = "number";
+        inpSst.step = "0.1";
+        inpSst.placeholder = "Ej: 18.7";
+        inpSst.addEventListener("focus", () => selectRow(i - 1));
+        inpSst.addEventListener("blur", () => {
+          const v = validateSST(inpSst.value);
+          if (v === null) {
+            rowObj.sst = null;
+            inpSst.value = "";
+            return;
+          }
+          rowObj.sst = v;
+          inpSst.value = v.toFixed(1);
         });
+        tdSst.appendChild(inpSst);
+        tr.appendChild(tdSst);
 
+        // Botón usar NFC
+        const tdNfc = document.createElement("td");
+        const btnUseNfc = document.createElement("button");
+        btnUseNfc.type = "button";
+        btnUseNfc.className = "btn btn-secondary";
+        btnUseNfc.textContent = "Usar último NFC";
+        btnUseNfc.addEventListener("click", () => {
+          selectRow(i - 1);
+          applyNfcToRow(i - 1);
+          // reflejar en input
+          if (rowObj.sst !== null) inpSst.value = rowObj.sst.toFixed(1);
+        });
+        tdNfc.appendChild(btnUseNfc);
+        tr.appendChild(tdNfc);
+
+        // Pardeamiento
         const tdP = document.createElement("td");
-        tdP.style.minWidth = "160px";
-        const sel = document.createElement("select");
-        sel.className = "small";
+        const selP = document.createElement("select");
         PARDEAMIENTO_OPS.forEach(op => {
           const o = document.createElement("option");
           o.value = op;
           o.textContent = op === "" ? "Sin seleccionar" : op;
-          sel.appendChild(o);
+          selP.appendChild(o);
         });
-        sel.addEventListener("change", () => rowObj.pardeamiento = sel.value);
-        tdP.appendChild(sel);
+        selP.addEventListener("change", () => rowObj.pardeamiento = selP.value);
+        tdP.appendChild(selP);
         tr.appendChild(tdP);
 
         tbody.appendChild(tr);
       }
     }
 
-    // Validate SST: keep only 7..35; 1 decimal; allow empty
-    function validateSST(raw) {
-      if (raw === "" || raw === null || raw === undefined) return null;
-      const num = Number(raw);
-      if (Number.isNaN(num)) return null;
-
-      let v = num;
-      if (v > 35) v = 35.0;
-      if (v < 7) v = 7.0;
-
-      v = Math.round(v * 10) / 10;
-      return v;
-    }
-
-    function setCell(r, c, value) {
-      grid[r].sst[c] = value;
-
-      const inputs = $("sstBody").querySelectorAll('input[type="number"]');
-      for (const inp of inputs) {
-        if (Number(inp.dataset.row) === r && inp.dataset.col === c) {
-          inp.value = value.toFixed(1);
-          inp.focus();
-          return;
-        }
-      }
+    function selectRow(r) {
+      const tbody = $("sstBody");
+      // limpiar
+      tbody.querySelectorAll("tr").forEach(tr => tr.classList.remove("row-selected"));
+      const tr = tbody.querySelector(`tr[data-row="${r}"]`);
+      if (tr) tr.classList.add("row-selected");
+      selectedRow = r;
     }
 
     // =============================
@@ -330,7 +354,7 @@
         const bToken = String(found.b).replace(",", ".").trim();
         const bNum = Number(bToken);
         if (!Number.isNaN(bNum)) brix = String(bNum);
-        else brix = bToken; // e.g., "LLL"
+        else brix = bToken; // ejemplo "LLL"
       }
 
       return { datetime, brix, temp, raw };
@@ -359,9 +383,6 @@
               if (record.recordType === "text") {
                 const textDecoder = new TextDecoder(record.encoding || "utf-8");
                 textParts.push(textDecoder.decode(record.data));
-              } else if (record.recordType === "url") {
-                const td = new TextDecoder("utf-8");
-                textParts.push(td.decode(record.data));
               } else {
                 const td = new TextDecoder("utf-8");
                 textParts.push(td.decode(record.data));
@@ -388,20 +409,12 @@
       }
     }
 
-    function syncLastBrixToSelectedCell() {
-      showErr("");
-
-      if (!selectedCell) {
-        showErr("Primero haz clic en una celda de la tabla para seleccionar dónde pegar el dato.");
-        return;
-      }
-
-      const b = $("detBrix").value.trim();
+    function applyNfcToRow(r) {
+      const b = ($("detBrix").value || "").trim();
       if (!b) {
         showErr("No hay Brix detectado desde NFC todavía.");
         return;
       }
-
       const bNum = Number(b.replace(",", "."));
       if (Number.isNaN(bNum)) {
         showErr("El Brix leído no es numérico (ej: 'LLL').");
@@ -409,9 +422,8 @@
       }
 
       const v = validateSST(String(bNum));
-      setCell(selectedCell.r, selectedCell.c, v);
-
-      showMsg(`Sincronizado Brix ${v.toFixed(1)} en fila ${selectedCell.r + 1}, columna ${selectedCell.c}.`);
+      grid[r].sst = v;
+      showMsg(`NFC (${v.toFixed(1)}) asignado a fruto ${grid[r].nFruto}.`);
     }
 
     // =============================
@@ -461,7 +473,15 @@
       const evaluacion = document.querySelector('input[name="evaluacion"]:checked')?.value || "";
       const tipoEvaluacion = document.querySelector('input[name="tipoEvaluacion"]:checked')?.value || "";
 
-      const payload = {
+      // Enviar en el formato anterior: sst_<pos>
+      const solidoSoluble = grid.map(r => {
+        const obj = { nFruto: r.nFruto, pardeamiento: r.pardeamiento };
+        POS_OPS.forEach(p => obj["sst_" + p] = null);
+        if (r.pos && r.sst !== null) obj["sst_" + r.pos] = r.sst;
+        return obj;
+      });
+
+      return {
         evaluacion,
         tipoEvaluacion,
         productor: $("productor").value.trim(),
@@ -471,11 +491,7 @@
         tratamiento: $("tratamiento").value.trim(),
         portaIngerto: $("portaIngerto").value.trim(),
         repeticion: $("repeticion").value === "" ? null : Number($("repeticion").value),
-        solidoSoluble: grid.map(r => {
-          const obj = { nFruto: r.nFruto, pardeamiento: r.pardeamiento };
-          SST_COLS.forEach(c => obj["sst_" + c] = r.sst[c]);
-          return obj;
-        }),
+        solidoSoluble,
         nfc: {
           datetime: $("detDatetime").value || "",
           brix: $("detBrix").value || "",
@@ -485,8 +501,6 @@
         timestamp: new Date().toISOString(),
         tipoFormulario: "solido_soluble"
       };
-
-      return payload;
     }
 
     function validateBeforeSend() {
@@ -496,20 +510,28 @@
         return false;
       }
 
+      // Validación: si hay sst, debe tener pos y rango correcto
       for (const r of grid) {
-        for (const c of SST_COLS) {
-          const v = r.sst[c];
-          if (v === null) continue;
-          if (v < 7 || v > 35) {
-            showErr("SST fuera de rango (7.0 a 35.0)");
-            return false;
-          }
-          if (Math.abs(v * 10 - Math.round(v * 10)) > 1e-9) {
-            showErr("SST debe tener solo un decimal");
-            return false;
-          }
+        if (r.sst === null && r.pos === "") continue;
+
+        if (r.sst !== null && r.pos === "") {
+          showErr(`Falta seleccionar posición (1..5) para fruto ${r.nFruto}.`);
+          return false;
+        }
+        if (r.sst === null && r.pos !== "") {
+          showErr(`Falta valor SST para fruto ${r.nFruto} (posición ${r.pos}).`);
+          return false;
+        }
+        if (r.sst < 7 || r.sst > 35) {
+          showErr("SST fuera de rango (7.0 a 35.0)");
+          return false;
+        }
+        if (Math.abs(r.sst * 10 - Math.round(r.sst * 10)) > 1e-9) {
+          showErr("SST debe tener solo un decimal");
+          return false;
         }
       }
+
       return true;
     }
 
@@ -540,7 +562,6 @@
       lastReading = { datetime:"", brix:"", temp:"", raw:"" };
 
       buildGrid();
-
       showErr("");
       showMsg("Formulario reseteado.");
     }
@@ -552,8 +573,6 @@
     wsConnect();
 
     $("btnScan").addEventListener("click", scanNfc);
-    $("btnSync").addEventListener("click", syncLastBrixToSelectedCell);
-
     $("btnClearNfc").addEventListener("click", () => {
       $("rawNfc").value = "";
       $("detDatetime").value = "";
