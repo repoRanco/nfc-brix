@@ -209,7 +209,6 @@
     const grid = [];
     let selectedRow = null;
     let nfcReader = null;
-    let nfcActive = false;
 
     function validateSST(raw) {
       if (raw === "" || raw === null || raw === undefined) return null;
@@ -217,8 +216,13 @@
       if (Number.isNaN(num)) return null;
 
       let v = num;
-      if (v > 35) v = 35.0;
-      if (v < 7) v = 7.0;
+      // NO aplicar clamp automático - solo validar rango
+      if (v < 7 || v > 35) {
+        console.warn(`Valor ${v} fuera de rango 7-35`);
+        // Retornar el valor sin modificar para que el usuario vea el error
+        return null;
+      }
+      
       v = Math.round(v * 10) / 10;
       return v;
     }
@@ -388,20 +392,36 @@
             $("detBrix").value = lastReading.brix || "";
             $("detTemp").value = lastReading.temp || "";
 
+            console.log("Brix detectado:", lastReading.brix);
+
             // Aplicar automáticamente a la fila
             const b = lastReading.brix.trim();
             if (!b) {
               showErr("No se pudo extraer Brix del NFC.");
+              nfcReader.removeEventListener("reading", handleReading);
               return;
             }
 
             const bNum = Number(b.replace(",", "."));
+            console.log("Brix como número:", bNum);
+
             if (Number.isNaN(bNum)) {
               showErr("El Brix leído no es numérico (ej: 'LLL').");
+              nfcReader.removeEventListener("reading", handleReading);
               return;
             }
 
-            const v = validateSST(String(bNum));
+            // Verificar rango ANTES de aplicar
+            if (bNum < 7 || bNum > 35) {
+              showErr(`El Brix leído (${bNum.toFixed(1)}) está fuera del rango permitido (7.0 - 35.0).`);
+              nfcReader.removeEventListener("reading", handleReading);
+              return;
+            }
+
+            // Redondear a 1 decimal
+            const v = Math.round(bNum * 10) / 10;
+            console.log("Valor final SST:", v);
+
             grid[rowIndex].sst = v;
             inputElement.value = v.toFixed(1);
 
@@ -410,6 +430,7 @@
             // Remover listener después de la primera lectura
             nfcReader.removeEventListener("reading", handleReading);
           } catch (e) {
+            console.error("Error procesando NFC:", e);
             showErr("Se leyó NFC pero no se pudo interpretar el contenido.");
             nfcReader.removeEventListener("reading", handleReading);
           }
@@ -422,6 +443,7 @@
         };
 
       } catch (e) {
+        console.error("Error iniciando NFC:", e);
         showErr("No se pudo iniciar el escaneo NFC. Revisa permisos/HTTPS.");
       }
     }
@@ -521,7 +543,7 @@
           return false;
         }
         if (r.sst < 7 || r.sst > 35) {
-          showErr("SST fuera de rango (7.0 a 35.0)");
+          showErr(`SST fuera de rango (7.0 a 35.0) en fruto ${r.nFruto}`);
           return false;
         }
         if (Math.abs(r.sst * 10 - Math.round(r.sst * 10)) > 1e-9) {
