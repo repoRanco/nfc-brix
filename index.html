@@ -69,7 +69,7 @@
         </div>
       </div>
       <div class="actions">
-        <button id="btnAutoFill" class="btn btn-secondary" type="button">Pegar Brix en siguiente celda</button>
+        <button id="btnSync" class="btn btn-secondary" type="button">Sincronizar dato (último Brix NFC)</button>
         <button id="btnClearNfc" class="btn btn-secondary" type="button">Limpiar lectura</button>
       </div>
     </div>
@@ -201,8 +201,12 @@
     // Build grid (100 rows)
     // =============================
     const grid = []; // each row: { nFruto, sst: {col: number|null}, pardeamiento }
+    let selectedCell = null; // { r, c }
+
     function buildGrid() {
       grid.length = 0;
+      selectedCell = null;
+
       const tbody = $("sstBody");
       tbody.innerHTML = "";
 
@@ -220,12 +224,21 @@
         SST_COLS.forEach((c) => {
           const td = document.createElement("td");
           td.style.minWidth = "120px";
+
           const inp = document.createElement("input");
           inp.type = "number";
           inp.step = "0.1";
           inp.className = "small";
           inp.dataset.row = String(i-1);
           inp.dataset.col = c;
+
+          // Selección de celda (solo click/tap)
+          inp.addEventListener("focus", () => {
+            selectedCell = { r: Number(inp.dataset.row), c: inp.dataset.col };
+          });
+          inp.addEventListener("click", () => {
+            selectedCell = { r: Number(inp.dataset.row), c: inp.dataset.col };
+          });
 
           inp.addEventListener("blur", () => {
             const r = Number(inp.dataset.row);
@@ -269,29 +282,17 @@
       const num = Number(raw);
       if (Number.isNaN(num)) return null;
 
-      // clamp only if out of range
       let v = num;
       if (v > 35) v = 35.0;
       if (v < 7) v = 7.0;
 
-      // enforce 1 decimal
       v = Math.round(v * 10) / 10;
       return v;
     }
 
-    function findNextEmptyCell() {
-      // Order: row 1..100, col order SST_COLS
-      for (let r = 0; r < grid.length; r++) {
-        for (const c of SST_COLS) {
-          if (grid[r].sst[c] === null) return { r, c };
-        }
-      }
-      return null;
-    }
-
     function setCell(r, c, value) {
       grid[r].sst[c] = value;
-      // Find input in DOM
+
       const inputs = $("sstBody").querySelectorAll('input[type="number"]');
       for (const inp of inputs) {
         if (Number(inp.dataset.row) === r && inp.dataset.col === c) {
@@ -308,20 +309,12 @@
     let lastReading = { datetime: "", brix: "", temp: "", raw: "" };
 
     function parseNfcText(text) {
-      // Expect something like CSV lines:
-      // "Date Time,Brix [%],Temp [degC]\n2025/12/22 12:45:33,LLL,22.4\n..."
-      // Your screenshot shows Brix sometimes as "LLL/AAA" (not numeric). We'll try to extract a numeric brix if present.
       const raw = (text || "").trim();
       let datetime = "";
       let brix = "";
       let temp = "";
 
-      // Strategy:
-      // - Find first line that looks like: YYYY/MM/DD HH:MM:SS,<brix>,<temp>
-      // - Use LAST valid line (most recent in text)
       const lines = raw.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-      // Try parse lines with regex
       const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([+-]?\d+(?:\.\d+)?)\s*$/;
 
       let found = null;
@@ -334,13 +327,10 @@
         datetime = found.dt;
         temp = found.t;
 
-        // brix: try numeric from token (some tags might store "12.3" or "12,3")
         const bToken = String(found.b).replace(",", ".").trim();
         const bNum = Number(bToken);
         if (!Number.isNaN(bNum)) brix = String(bNum);
-        else brix = bToken; // keep raw (e.g., "LLL")
-      } else {
-        // Fallback: just store raw
+        else brix = bToken; // e.g., "LLL"
       }
 
       return { datetime, brix, temp, raw };
@@ -366,16 +356,13 @@
             let textParts = [];
 
             for (const record of message.records) {
-              // Most common: "text" or "url"
               if (record.recordType === "text") {
                 const textDecoder = new TextDecoder(record.encoding || "utf-8");
                 textParts.push(textDecoder.decode(record.data));
               } else if (record.recordType === "url") {
-                // URL record is encoded; try decode as text
                 const td = new TextDecoder("utf-8");
                 textParts.push(td.decode(record.data));
               } else {
-                // generic decode attempt
                 const td = new TextDecoder("utf-8");
                 textParts.push(td.decode(record.data));
               }
@@ -401,30 +388,30 @@
       }
     }
 
-    function autofillBrix() {
+    function syncLastBrixToSelectedCell() {
       showErr("");
-      const b = $("detBrix").value.trim();
-      if (!b) {
-        showErr("No hay Brix detectado.");
+
+      if (!selectedCell) {
+        showErr("Primero haz clic en una celda de la tabla para seleccionar dónde pegar el dato.");
         return;
       }
 
-      // brix must be numeric to fill grid
+      const b = $("detBrix").value.trim();
+      if (!b) {
+        showErr("No hay Brix detectado desde NFC todavía.");
+        return;
+      }
+
       const bNum = Number(b.replace(",", "."));
       if (Number.isNaN(bNum)) {
-        showErr("El Brix leído no es numérico (ej: 'LLL'). Si la etiqueta debe traer número, ajusta el formato NDEF.");
+        showErr("El Brix leído no es numérico (ej: 'LLL').");
         return;
       }
 
       const v = validateSST(String(bNum));
-      const next = findNextEmptyCell();
-      if (!next) {
-        showErr("La grilla está completa (no hay celdas vacías).");
-        return;
-      }
+      setCell(selectedCell.r, selectedCell.c, v);
 
-      setCell(next.r, next.c, v);
-      showMsg(`Brix ${v.toFixed(1)} pegado en fila ${next.r+1}, columna ${next.c}.`);
+      showMsg(`Sincronizado Brix ${v.toFixed(1)} en fila ${selectedCell.r + 1}, columna ${selectedCell.c}.`);
     }
 
     // =============================
@@ -453,10 +440,8 @@
       };
 
       ws.onmessage = (ev) => {
-        // backend might respond JSON or text
         let data = ev.data;
         try { data = JSON.parse(ev.data); } catch {}
-        // Mostar respuesta en UI
         if (data && data.success) showMsg("Servidor respondió: éxito.");
         else if (data && data.message) showErr("Servidor respondió: " + data.message);
       };
@@ -473,7 +458,6 @@
     }
 
     function buildPayload() {
-      // Build "form" compatible with your Vue payload shape (same keys)
       const evaluacion = document.querySelector('input[name="evaluacion"]:checked')?.value || "";
       const tipoEvaluacion = document.querySelector('input[name="tipoEvaluacion"]:checked')?.value || "";
 
@@ -512,7 +496,6 @@
         return false;
       }
 
-      // Validate SST values: 7..35 and 1 decimal
       for (const r of grid) {
         for (const c of SST_COLS) {
           const v = r.sst[c];
@@ -546,19 +529,16 @@
     }
 
     function resetAll() {
-      // reset header
       document.querySelectorAll('input[name="evaluacion"]').forEach(i => i.checked = false);
       document.querySelectorAll('input[name="tipoEvaluacion"]').forEach(i => i.checked = false);
       ["productor","variedad","nLote","fecha","tratamiento","portaIngerto","repeticion"].forEach(id => $(id).value = "");
 
-      // reset nfc
       $("rawNfc").value = "";
       $("detDatetime").value = "";
       $("detBrix").value = "";
       $("detTemp").value = "";
       lastReading = { datetime:"", brix:"", temp:"", raw:"" };
 
-      // reset grid
       buildGrid();
 
       showErr("");
@@ -572,7 +552,8 @@
     wsConnect();
 
     $("btnScan").addEventListener("click", scanNfc);
-    $("btnAutoFill").addEventListener("click", autofillBrix);
+    $("btnSync").addEventListener("click", syncLastBrixToSelectedCell);
+
     $("btnClearNfc").addEventListener("click", () => {
       $("rawNfc").value = "";
       $("detDatetime").value = "";
@@ -584,7 +565,6 @@
     $("btnSend").addEventListener("click", send);
     $("btnReset").addEventListener("click", resetAll);
 
-    // Disable scan button if unsupported
     if (!("NDEFReader" in window)) {
       $("btnScan").disabled = true;
       showErr("Este navegador no soporta Web NFC. Usa Android + Chrome en HTTPS.");
