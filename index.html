@@ -47,21 +47,8 @@
     <div id="msg" class="alert ok" style="display:none;"></div>
 
     <div class="card">
-      <h4 style="margin:0 0 10px;">NFC</h4>
+      <h4 style="margin:0 0 10px;">NFC - Última lectura</h4>
       <div class="row">
-        <div class="col-6">
-          <button id="btnScan" class="btn btn-primary" type="button">Escanear NFC</button>
-          <div class="muted" style="margin-top:8px;">
-            Requiere Android + Chrome + HTTPS. El escaneo debe iniciarse con este botón.
-          </div>
-        </div>
-        <div class="col-6">
-          <label>Última lectura (debug)</label>
-          <textarea id="rawNfc" rows="4" readonly placeholder="Aquí se mostrará el texto leído desde NFC..."></textarea>
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:10px;">
         <div class="col-4">
           <label>DateTime detectado</label>
           <input id="detDatetime" readonly />
@@ -75,10 +62,10 @@
           <input id="detTemp" readonly />
         </div>
       </div>
-
-      <div class="actions">
-        <button id="btnClearNfc" class="btn btn-secondary" type="button">Limpiar lectura</button>
-      </div>
+      <details style="margin-top:10px;">
+        <summary class="muted" style="cursor:pointer;">Ver lectura completa (debug)</summary>
+        <textarea id="rawNfc" rows="4" readonly placeholder="Aquí se mostrará el texto leído desde NFC..." style="margin-top:8px;"></textarea>
+      </details>
     </div>
 
     <div class="card">
@@ -148,8 +135,8 @@
 
       <div class="muted small" style="margin-bottom:10px;">
         1) Haz clic en el <b>N° de fruto</b> (selecciona la fila).<br/>
-        2) Elige la <b>posición</b> (1..5).<br/>
-        3) Escribe el valor SST <b>o</b> presiona “Usar último NFC”.
+        2) Elige la <b>posición</b> (1, 2, 3, 3.3, 3.5, 3.8, 4, 5).<br/>
+        3) Escribe el valor SST <b>o</b> presiona <b>"Escanear NFC"</b> (escanea y pega automáticamente).
       </div>
 
       <div style="overflow:auto;">
@@ -159,7 +146,7 @@
               <th style="width:120px;">N° de fruto</th>
               <th style="width:170px;">Posición (1..5)</th>
               <th style="width:160px;">SST (valor)</th>
-              <th style="width:220px;">NFC</th>
+              <th style="width:220px;">Escanear NFC</th>
               <th style="width:170px;">Pardeamiento</th>
             </tr>
           </thead>
@@ -219,9 +206,10 @@
     // =============================
     // Data model
     // =============================
-    // cada fruto tiene: { nFruto, pos, sst, pardeamiento }
     const grid = [];
-    let selectedRow = null; // index 0..99
+    let selectedRow = null;
+    let nfcReader = null;
+    let nfcActive = false;
 
     function validateSST(raw) {
       if (raw === "" || raw === null || raw === undefined) return null;
@@ -266,7 +254,7 @@
         tdPos.appendChild(selPos);
         tr.appendChild(tdPos);
 
-        // SST input (a la derecha)
+        // SST input
         const tdSst = document.createElement("td");
         const inpSst = document.createElement("input");
         inpSst.type = "number";
@@ -286,19 +274,17 @@
         tdSst.appendChild(inpSst);
         tr.appendChild(tdSst);
 
-        // Botón usar NFC
+        // Botón escanear NFC (todo en uno)
         const tdNfc = document.createElement("td");
-        const btnUseNfc = document.createElement("button");
-        btnUseNfc.type = "button";
-        btnUseNfc.className = "btn btn-secondary";
-        btnUseNfc.textContent = "Usar último NFC";
-        btnUseNfc.addEventListener("click", () => {
+        const btnScanNfc = document.createElement("button");
+        btnScanNfc.type = "button";
+        btnScanNfc.className = "btn btn-primary";
+        btnScanNfc.textContent = "Escanear NFC";
+        btnScanNfc.addEventListener("click", async () => {
           selectRow(i - 1);
-          applyNfcToRow(i - 1);
-          // reflejar en input
-          if (rowObj.sst !== null) inpSst.value = rowObj.sst.toFixed(1);
+          await scanAndApplyNfc(i - 1, inpSst);
         });
-        tdNfc.appendChild(btnUseNfc);
+        tdNfc.appendChild(btnScanNfc);
         tr.appendChild(tdNfc);
 
         // Pardeamiento
@@ -320,7 +306,6 @@
 
     function selectRow(r) {
       const tbody = $("sstBody");
-      // limpiar
       tbody.querySelectorAll("tr").forEach(tr => tr.classList.remove("row-selected"));
       const tr = tbody.querySelector(`tr[data-row="${r}"]`);
       if (tr) tr.classList.add("row-selected");
@@ -354,13 +339,13 @@
         const bToken = String(found.b).replace(",", ".").trim();
         const bNum = Number(bToken);
         if (!Number.isNaN(bNum)) brix = String(bNum);
-        else brix = bToken; // ejemplo "LLL"
+        else brix = bToken;
       }
 
       return { datetime, brix, temp, raw };
     }
 
-    async function scanNfc() {
+    async function scanAndApplyNfc(rowIndex, inputElement) {
       showErr("");
       showMsg("");
 
@@ -370,11 +355,17 @@
       }
 
       try {
-        const reader = new NDEFReader();
-        await reader.scan();
+        // Iniciar escaneo
+        if (!nfcReader) {
+          nfcReader = new NDEFReader();
+        }
 
-        reader.onreadingerror = () => showErr("Error leyendo NFC. Intenta nuevamente.");
-        reader.onreading = (event) => {
+        showMsg("Acerca la etiqueta NFC al teléfono…");
+        
+        await nfcReader.scan();
+
+        // Configurar listener para esta lectura específica
+        const handleReading = (event) => {
           try {
             const { message } = event;
             let textParts = [];
@@ -397,33 +388,42 @@
             $("detBrix").value = lastReading.brix || "";
             $("detTemp").value = lastReading.temp || "";
 
-            showMsg("Lectura NFC recibida.");
+            // Aplicar automáticamente a la fila
+            const b = lastReading.brix.trim();
+            if (!b) {
+              showErr("No se pudo extraer Brix del NFC.");
+              return;
+            }
+
+            const bNum = Number(b.replace(",", "."));
+            if (Number.isNaN(bNum)) {
+              showErr("El Brix leído no es numérico (ej: 'LLL').");
+              return;
+            }
+
+            const v = validateSST(String(bNum));
+            grid[rowIndex].sst = v;
+            inputElement.value = v.toFixed(1);
+
+            showMsg(`✓ NFC escaneado: Brix ${v.toFixed(1)} agregado a fruto ${grid[rowIndex].nFruto}.`);
+
+            // Remover listener después de la primera lectura
+            nfcReader.removeEventListener("reading", handleReading);
           } catch (e) {
             showErr("Se leyó NFC pero no se pudo interpretar el contenido.");
+            nfcReader.removeEventListener("reading", handleReading);
           }
         };
 
-        showMsg("Acerca la etiqueta NFC al teléfono…");
+        nfcReader.addEventListener("reading", handleReading);
+
+        nfcReader.onreadingerror = () => {
+          showErr("Error leyendo NFC. Intenta nuevamente.");
+        };
+
       } catch (e) {
         showErr("No se pudo iniciar el escaneo NFC. Revisa permisos/HTTPS.");
       }
-    }
-
-    function applyNfcToRow(r) {
-      const b = ($("detBrix").value || "").trim();
-      if (!b) {
-        showErr("No hay Brix detectado desde NFC todavía.");
-        return;
-      }
-      const bNum = Number(b.replace(",", "."));
-      if (Number.isNaN(bNum)) {
-        showErr("El Brix leído no es numérico (ej: 'LLL').");
-        return;
-      }
-
-      const v = validateSST(String(bNum));
-      grid[r].sst = v;
-      showMsg(`NFC (${v.toFixed(1)}) asignado a fruto ${grid[r].nFruto}.`);
     }
 
     // =============================
@@ -473,7 +473,6 @@
       const evaluacion = document.querySelector('input[name="evaluacion"]:checked')?.value || "";
       const tipoEvaluacion = document.querySelector('input[name="tipoEvaluacion"]:checked')?.value || "";
 
-      // Enviar en el formato anterior: sst_<pos>
       const solidoSoluble = grid.map(r => {
         const obj = { nFruto: r.nFruto, pardeamiento: r.pardeamiento };
         POS_OPS.forEach(p => obj["sst_" + p] = null);
@@ -510,7 +509,6 @@
         return false;
       }
 
-      // Validación: si hay sst, debe tener pos y rango correcto
       for (const r of grid) {
         if (r.sst === null && r.pos === "") continue;
 
@@ -572,21 +570,15 @@
     buildGrid();
     wsConnect();
 
-    $("btnScan").addEventListener("click", scanNfc);
-    $("btnClearNfc").addEventListener("click", () => {
-      $("rawNfc").value = "";
-      $("detDatetime").value = "";
-      $("detBrix").value = "";
-      $("detTemp").value = "";
-      showMsg("Lectura limpiada.");
-    });
-
     $("btnSend").addEventListener("click", send);
     $("btnReset").addEventListener("click", resetAll);
 
     if (!("NDEFReader" in window)) {
-      $("btnScan").disabled = true;
       showErr("Este navegador no soporta Web NFC. Usa Android + Chrome en HTTPS.");
+      // Deshabilitar todos los botones de escaneo
+      document.querySelectorAll('.btn-primary').forEach(btn => {
+        if (btn.textContent === "Escanear NFC") btn.disabled = true;
+      });
     }
   </script>
 </body>
