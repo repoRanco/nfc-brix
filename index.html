@@ -6,7 +6,7 @@
   <title>Control Sólidos Solubles - Atago NFC</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; background: #f4f7f6; }
-    .container { max-width: 1100px; margin: 0 auto; }
+    .container { max-width: 1200px; margin: 0 auto; }
     .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 16px; }
     h3, h4 { margin-top: 0; color: #1e293b; }
     
@@ -14,34 +14,43 @@
     .col-3 { grid-column: span 3; }
     .col-4 { grid-column: span 4; }
     .col-6 { grid-column: span 6; }
+    .col-12 { grid-column: span 12; }
     
     label { font-size: 12px; font-weight: 600; color: #64748b; display: block; margin-bottom: 4px; }
-    input, select, button { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; box-sizing: border-box; }
+    input, select, button, textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; box-sizing: border-box; }
     
-    .btn { cursor: pointer; border: 0; font-weight: 600; transition: opacity 0.2s; color: white; }
+    .btn { cursor: pointer; border: 0; font-weight: 600; transition: all 0.2s; color: white; }
     .btn-primary { background: #2563eb; }
     .btn-success { background: #16a34a; }
     .btn-secondary { background: #64748b; }
+    .btn-warning { background: #f59e0b; }
+    .btn:hover { opacity: 0.9; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
     .alert { padding: 12px; border-radius: 8px; margin-bottom: 16px; display: none; }
     .alert-err { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .alert-ok { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
-    /* Estilos Tabla NFC */
-    .nfc-table-container { overflow-x: auto; margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 8px; }
+    .table-container { overflow-x: auto; margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 8px; max-height: 500px; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; background: white; }
-    th { background: #f8fafc; padding: 12px; text-align: left; font-size: 13px; color: #475569; border-bottom: 2px solid #e2e8f0; }
-    td { padding: 10px; border-bottom: 1px solid #f1f5f9; font-size: 14px; vertical-align: middle; }
+    th { background: #f8fafc; padding: 10px; text-align: center; font-size: 12px; color: #475569; border-bottom: 2px solid #e2e8f0; position: sticky; top: 0; z-index: 10; }
+    td { padding: 8px; border-bottom: 1px solid #f1f5f9; font-size: 13px; vertical-align: middle; text-align: center; }
     
-    .val-brix { font-weight: 700; color: #16a34a; font-size: 16px; }
-    .val-date { color: #64748b; font-size: 12px; }
+    .val-brix { font-weight: 700; color: #16a34a; font-size: 15px; }
+    .val-date { color: #64748b; font-size: 11px; }
     
-    .row-sent { background-color: #f0fdf4 !important; opacity: 0.8; }
-    .badge-sent { background: #16a34a; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
+    .row-filled { background-color: #f0fdf4 !important; }
+    .row-active { background-color: #eff6ff !important; }
     
-    select.small-input { padding: 5px; font-size: 12px; }
-    pre { background: #1e293b; color: #f8fafc; padding: 10px; border-radius: 8px; font-size: 11px; overflow: auto; }
+    select.small-input { padding: 6px; font-size: 12px; }
+    pre { background: #1e293b; color: #f8fafc; padding: 10px; border-radius: 8px; font-size: 11px; overflow: auto; max-height: 300px; }
+    
+    .stats { display: flex; gap: 15px; padding: 15px; background: #f8fafc; border-radius: 8px; margin-bottom: 15px; }
+    .stat-item { flex: 1; text-align: center; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #2563eb; }
+    .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; }
+    
+    .actions { display: flex; gap: 10px; margin-top: 15px; }
   </style>
 </head>
 <body>
@@ -59,13 +68,15 @@
       <div class="col-3">
         <label>Evaluación *</label>
         <select id="evaluacion">
+          <option value="">Seleccione</option>
           <option value="ENS">ENS</option>
           <option value="NV">NV</option>
         </select>
       </div>
       <div class="col-3">
-        <label>Tipo *</label>
+        <label>Tipo Evaluación *</label>
         <select id="tipoEvaluacion">
+          <option value="">Seleccione</option>
           <option value="REC">REC</option>
           <option value="CM">CM</option>
         </select>
@@ -86,44 +97,95 @@
         <label>Variedad *</label>
         <input id="variedad" placeholder="Variedad" />
       </div>
+      <div class="col-4">
+        <label>Tratamiento</label>
+        <input id="tratamiento" />
+      </div>
+      <div class="col-4">
+        <label>Porta Injerto</label>
+        <input id="portaIngerto" />
+      </div>
+      <div class="col-4">
+        <label>Repetición</label>
+        <input id="repeticion" type="number" />
+      </div>
     </div>
   </div>
 
-  <!-- II. NFC SCANNER -->
+  <!-- II. CONFIGURACIÓN DE POSICIONES -->
   <div class="card">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-      <h4>II. Mediciones del Dispositivo (NFC)</h4>
-      <button id="btnScan" class="btn btn-primary" style="width:auto; padding:10px 20px;">Escanear Atago</button>
-    </div>
-
-    <div id="nfcPlaceholder" class="muted" style="text-align:center; padding:20px; border:2px dashed #cbd5e1; border-radius:8px;">
-      Acerque el dispositivo y presione "Escanear Atago" para ver las 100 mediciones.
-    </div>
-
-    <div id="nfcTableContainer" class="nfc-table-container" style="display:none;">
+    <h4>II. Configuración de Mediciones (100 frutos)</h4>
+    <p style="font-size:13px; color:#64748b; margin-bottom:10px;">
+      Configure las <b>posiciones</b> y <b>pardeamiento</b> para cada fruto. Solo las filas con posición seleccionada recibirán datos del NFC.
+    </p>
+    
+    <div class="table-container">
       <table>
         <thead>
           <tr>
-            <th>#</th>
-            <th>Fecha / Hora</th>
+            <th style="width:80px;">#</th>
+            <th style="width:150px;">Posición</th>
+            <th style="width:150px;">Pardeamiento</th>
+            <th>Fecha/Hora</th>
             <th>Brix (SST)</th>
-            <th>Posición</th>
-            <th>Pardeamiento</th>
-            <th>Acción</th>
+            <th>Temp [°C]</th>
           </tr>
         </thead>
-        <tbody id="nfcBody"></tbody>
+        <tbody id="configBody"></tbody>
       </table>
+    </div>
+
+    <div class="actions">
+      <button id="btnScan" class="btn btn-primary">📡 Escanear Atago NFC</button>
+      <button id="btnSend" class="btn btn-success">✅ Enviar Datos</button>
+      <button id="btnReset" class="btn btn-secondary">🔄 Limpiar Todo</button>
+    </div>
+  </div>
+
+  <!-- ESTADÍSTICAS -->
+  <div class="card">
+    <h4>Estadísticas</h4>
+    <div class="stats">
+      <div class="stat-item">
+        <div class="stat-value" id="statConfig">0</div>
+        <div class="stat-label">Configuradas</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statFilled" style="color:#16a34a;">0</div>
+        <div class="stat-label">Con Datos NFC</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value" id="statPending" style="color:#f59e0b;">0</div>
+        <div class="stat-label">Pendientes</div>
+      </div>
     </div>
   </div>
 
   <!-- DEBUG -->
   <details>
-    <summary class="muted" style="cursor:pointer; font-size:12px;">Ver WebSocket & Debug</summary>
+    <summary style="cursor:pointer; font-size:12px; color:#64748b;">🔍 Ver WebSocket & Debug</summary>
     <div class="card" style="margin-top:10px;">
       <div class="row">
-        <div class="col-6"><label>WS Estado</label><input id="wsState" readonly /></div>
-        <div class="col-6"><label>Último Envío</label><pre id="lastPayload">{}</pre></div>
+        <div class="col-4">
+          <label>WS Estado</label>
+          <input id="wsState" readonly />
+        </div>
+        <div class="col-4">
+          <label>WS URL</label>
+          <input id="wsUrl" readonly />
+        </div>
+        <div class="col-4">
+          <label>Lecturas NFC</label>
+          <input id="nfcCount" readonly />
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <label>Último Payload Enviado</label>
+        <pre id="lastPayload">{}</pre>
+      </div>
+      <div style="margin-top:10px;">
+        <label>Raw NFC Data</label>
+        <textarea id="rawNfc" rows="6" readonly style="font-family:monospace; font-size:11px;"></textarea>
       </div>
     </div>
   </details>
@@ -136,27 +198,114 @@
   
   const $ = (id) => document.getElementById(id);
   let ws = null;
+  let gridData = []; // Array de 100 elementos
+  let nfcReadings = []; // Lecturas válidas del NFC
 
   // --- WebSocket ---
   function connectWS() {
+    $("wsUrl").value = WS_URL;
     ws = new WebSocket(WS_URL);
     ws.onopen = () => $("wsState").value = "CONECTADO";
     ws.onclose = () => { $("wsState").value = "DESCONECTADO"; setTimeout(connectWS, 3000); };
     ws.onerror = () => $("wsState").value = "ERROR";
-    ws.onmessage = (e) => { console.log("Server:", e.data); showMsg("Respuesta recibida del servidor"); };
+    ws.onmessage = (e) => { 
+      console.log("Server:", e.data); 
+      try {
+        const data = JSON.parse(e.data);
+        if (data.success) showMsg("✅ Servidor confirmó recepción exitosa");
+        else showErr("⚠️ Servidor respondió: " + (data.message || "Error desconocido"));
+      } catch {
+        showMsg("Respuesta del servidor recibida");
+      }
+    };
   }
 
   function showErr(m) { $("err").textContent = m; $("err").style.display = m ? "block" : "none"; }
-  function showMsg(m) { $("msg").textContent = m; $("msg").style.display = m ? "block" : "none"; setTimeout(()=>showMsg(""), 3000); }
+  function showMsg(m) { $("msg").textContent = m; $("msg").style.display = m ? "block" : "none"; setTimeout(()=>showMsg(""), 4000); }
 
-  // --- Lógica NFC ---
+  // --- Inicializar Grid ---
+  function initGrid() {
+    gridData = [];
+    const tbody = $("configBody");
+    tbody.innerHTML = "";
+
+    for (let i = 1; i <= 100; i++) {
+      const row = {
+        nFruto: i,
+        posicion: "",
+        pardeamiento: "",
+        datetime: "",
+        brix: null,
+        temp: null
+      };
+      gridData.push(row);
+
+      const tr = document.createElement("tr");
+      tr.id = `row-${i}`;
+
+      tr.innerHTML = `
+        <td><b>${i}</b></td>
+        <td>
+          <select id="pos-${i}" class="small-input" onchange="updateRow(${i})">
+            <option value="">-</option>
+            ${POS_OPS.map(p => `<option value="${p}">${p}</option>`).join('')}
+          </select>
+        </td>
+        <td>
+          <select id="par-${i}" class="small-input" onchange="updateRow(${i})">
+            ${PARDE_OPS.map(p => `<option value="${p}">${p || 'Ninguno'}</option>`).join('')}
+          </select>
+        </td>
+        <td id="dt-${i}" class="val-date">-</td>
+        <td id="brix-${i}">-</td>
+        <td id="temp-${i}" style="font-size:12px; color:#64748b;">-</td>
+      `;
+      tbody.appendChild(tr);
+    }
+    updateStats();
+  }
+
+  function updateRow(n) {
+    const idx = n - 1;
+    gridData[idx].posicion = $(`pos-${n}`).value;
+    gridData[idx].pardeamiento = $(`par-${n}`).value;
+    
+    const tr = $(`row-${n}`);
+    if (gridData[idx].posicion) {
+      tr.classList.add("row-active");
+    } else {
+      tr.classList.remove("row-active");
+      tr.classList.remove("row-filled");
+    }
+    updateStats();
+  }
+
+  function updateStats() {
+    const configured = gridData.filter(r => r.posicion !== "").length;
+    const filled = gridData.filter(r => r.posicion !== "" && r.brix !== null).length;
+    const pending = configured - filled;
+
+    $("statConfig").textContent = configured;
+    $("statFilled").textContent = filled;
+    $("statPending").textContent = pending;
+  }
+
+  // --- NFC Scanner ---
   async function scanNFC() {
-    if (!("NDEFReader" in window)) return showErr("NFC no soportado en este navegador/dispositivo.");
+    if (!("NDEFReader" in window)) {
+      return showErr("❌ NFC no soportado. Use Android + Chrome en HTTPS.");
+    }
+
+    // Validar que haya al menos una posición configurada
+    const configured = gridData.filter(r => r.posicion !== "");
+    if (configured.length === 0) {
+      return showErr("⚠️ Configure al menos una posición antes de escanear.");
+    }
     
     try {
       const reader = new NDEFReader();
       await reader.scan();
-      showMsg("Escaneando... acerque el Atago.");
+      showMsg("📡 Escaneando... acerque el Atago al dispositivo.");
 
       reader.onreading = (event) => {
         const decoder = new TextDecoder();
@@ -164,88 +313,100 @@
         for (const record of event.message.records) {
           rawText += decoder.decode(record.data);
         }
+        $("rawNfc").value = rawText;
         processNfcData(rawText);
       };
-    } catch (e) { showErr("Error al iniciar NFC: " + e); }
+
+      reader.onreadingerror = () => {
+        showErr("❌ Error al leer NFC. Intente nuevamente.");
+      };
+
+    } catch (e) { 
+      showErr("❌ Error al iniciar NFC: " + e.message); 
+    }
   }
 
   function processNfcData(text) {
     const lines = text.split(/\r?\n/);
-    const validReadings = [];
+    nfcReadings = [];
     
-    // Regex para capturar: Fecha, Brix, Temp
-    // Ejemplo: 2026/01/06 10:54:53,    16.7,    21.8
+    // Regex: 2026/01/06 10:54:53,    16.7,    21.8
     const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([\d.]+)/;
 
     lines.forEach(line => {
       const m = line.match(re);
       if (m) {
         const brixRaw = m[2].trim();
-        // FILTRO: Si es LLL o no es un número, se ignora
         const brixNum = parseFloat(brixRaw);
         
-        if (!isNaN(brixNum) && brixRaw.toUpperCase() !== "LLL") {
-          validReadings.push({
-            dt: m[1],
+        // FILTRO: Ignorar LLL, 0.0 y valores no numéricos
+        if (!isNaN(brixNum) && 
+            brixRaw.toUpperCase() !== "LLL" && 
+            brixNum > 0 &&
+            brixNum >= 7 && 
+            brixNum <= 35) {
+          nfcReadings.push({
+            datetime: m[1],
             brix: brixNum.toFixed(1),
-            temp: m[3]
+            temp: parseFloat(m[3]).toFixed(1)
           });
         }
       }
     });
 
-    renderNfcTable(validReadings);
+    $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
+    applyNfcToGrid();
   }
 
-  function renderNfcTable(readings) {
-    const body = $("nfcBody");
-    body.innerHTML = "";
-    
-    if (readings.length === 0) {
-      showErr("No se encontraron mediciones válidas en el tag.");
-      return;
+  function applyNfcToGrid() {
+    if (nfcReadings.length === 0) {
+      return showErr("❌ No se encontraron lecturas válidas en el NFC.");
     }
 
-    $("nfcPlaceholder").style.display = "none";
-    $("nfcTableContainer").style.display = "block";
+    // Obtener solo las filas configuradas (con posición)
+    const configuredRows = gridData.filter(r => r.posicion !== "");
+    
+    if (configuredRows.length === 0) {
+      return showErr("⚠️ No hay filas configuradas para recibir datos.");
+    }
 
-    readings.forEach((r, i) => {
-      const tr = document.createElement("tr");
-      tr.id = `row-${i}`;
+    let applied = 0;
+    configuredRows.forEach((row, index) => {
+      if (index < nfcReadings.length) {
+        const reading = nfcReadings[index];
+        row.datetime = reading.datetime;
+        row.brix = parseFloat(reading.brix);
+        row.temp = parseFloat(reading.temp);
 
-      tr.innerHTML = `
-        <td>${i + 1}</td>
-        <td><div class="val-date">${r.dt}</div></td>
-        <td><div class="val-brix">${r.brix}</div></td>
-        <td>
-          <select id="pos-${i}" class="small-input">
-            <option value="">-</option>
-            ${POS_OPS.map(p => `<option value="${p}">${p}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <select id="par-${i}" class="small-input">
-            ${PARDE_OPS.map(p => `<option value="${p}">${p || 'Ninguno'}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <button class="btn btn-success" onclick="sendSingleRow(${i}, '${r.dt}', ${r.brix}, ${r.temp})">Enviar</button>
-        </td>
-      `;
-      body.appendChild(tr);
+        // Actualizar UI
+        const n = row.nFruto;
+        $(`dt-${n}`).textContent = reading.datetime.split(' ')[1]; // Solo hora
+        $(`brix-${n}`).innerHTML = `<span class="val-brix">${reading.brix}</span>`;
+        $(`temp-${n}`).textContent = reading.temp;
+        $(`row-${n}`).classList.add("row-filled");
+        
+        applied++;
+      }
     });
+
+    updateStats();
+    showMsg(`✅ ${applied} mediciones aplicadas correctamente a las filas configuradas.`);
   }
 
   // --- Envío de Datos ---
-  function sendSingleRow(index, dt, brix, temp) {
-    const pos = $(`pos-${index}`).value;
-    const parde = $(`par-${index}`).value;
+  function sendData() {
+    // Validar campos obligatorios
+    if (!$("evaluacion").value || !$("tipoEvaluacion").value || 
+        !$("productor").value || !$("variedad").value || 
+        !$("nLote").value || !$("fecha").value) {
+      return showErr("⚠️ Complete todos los campos obligatorios (*) del huerto.");
+    }
 
-    if (!pos) return alert("Seleccione una posición antes de enviar.");
-    
-    // Validar cabecera
-    if (!$("productor").value || !$("nLote").value) {
-      return showErr("Complete los datos del huerto (Productor y Lote) antes de enviar.");
+    // Obtener solo las filas con datos completos
+    const dataToSend = gridData.filter(r => r.posicion !== "" && r.brix !== null);
+
+    if (dataToSend.length === 0) {
+      return showErr("⚠️ No hay datos para enviar. Configure posiciones y escanee el NFC.");
     }
 
     const payload = {
@@ -255,37 +416,48 @@
       variedad: $("variedad").value,
       nLote: $("nLote").value,
       fecha: $("fecha").value,
+      tratamiento: $("tratamiento").value || "",
+      portaIngerto: $("portaIngerto").value || "",
+      repeticion: $("repeticion").value ? parseInt($("repeticion").value) : null,
       timestamp: new Date().toISOString(),
       tipoFormulario: "solido_soluble",
-      // Datos de la medición
-      medicion: {
-        nFruto: index + 1,
-        brix: brix,
-        posicion: pos,
-        pardeamiento: parde,
-        atago_dt: dt,
-        atago_temp: temp
-      }
+      solidoSoluble: dataToSend.map(r => ({
+        nFruto: r.nFruto,
+        posicion: r.posicion,
+        brix: r.brix,
+        pardeamiento: r.pardeamiento,
+        atago_datetime: r.datetime,
+        atago_temp: r.temp
+      }))
     };
 
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(payload));
       $("lastPayload").textContent = JSON.stringify(payload, null, 2);
-      
-      // Marcar fila como enviada
-      const row = $(`row-${index}`);
-      row.classList.add("row-sent");
-      row.querySelector("td:last-child").innerHTML = `<span class="badge-sent">Enviado</span>`;
-      showMsg(`Medición #${index+1} enviada con éxito.`);
+      showMsg(`✅ ${dataToSend.length} mediciones enviadas correctamente.`);
     } else {
-      showErr("Error: WebSocket no conectado.");
+      showErr("❌ WebSocket no conectado. Verifique la conexión.");
     }
   }
 
-  // Inicializar
+  function resetAll() {
+    if (!confirm("¿Está seguro de limpiar todos los datos?")) return;
+    
+    initGrid();
+    $("rawNfc").value = "";
+    $("nfcCount").value = "";
+    nfcReadings = [];
+    showMsg("🔄 Datos limpiados correctamente.");
+  }
+
+  // --- Inicialización ---
   $("fecha").valueAsDate = new Date();
   connectWS();
+  initGrid();
+
   $("btnScan").onclick = scanNFC;
+  $("btnSend").onclick = sendData;
+  $("btnReset").onclick = resetAll;
 
 </script>
 
