@@ -23,7 +23,6 @@
     .btn-primary { background: #2563eb; }
     .btn-success { background: #16a34a; }
     .btn-secondary { background: #64748b; }
-    .btn-warning { background: #f59e0b; }
     .btn:hover { opacity: 0.9; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
@@ -73,35 +72,10 @@
       text-align: center;
       box-shadow: 0 10px 40px rgba(0,0,0,0.2);
     }
-    .modal-icon {
-      font-size: 64px;
-      margin-bottom: 20px;
-    }
-    .modal-title {
-      font-size: 24px;
-      font-weight: 700;
-      color: #16a34a;
-      margin-bottom: 10px;
-    }
-    .modal-message {
-      font-size: 16px;
-      color: #64748b;
-      margin-bottom: 25px;
-    }
-    .modal-btn {
-      padding: 12px 30px;
-      background: #16a34a;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .modal-btn:hover {
-      background: #15803d;
-    }
+    .modal-icon { font-size: 64px; margin-bottom: 20px; }
+    .modal-title { font-size: 24px; font-weight: 700; color: #16a34a; margin-bottom: 10px; }
+    .modal-message { font-size: 16px; color: #64748b; margin-bottom: 25px; white-space: pre-line; }
+    .modal-btn { padding: 12px 30px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -112,7 +86,6 @@
   <div id="err" class="alert alert-err"></div>
   <div id="msg" class="alert alert-ok"></div>
 
-  <!-- I. DATOS CABECERA -->
   <div class="card">
     <h4>I. Datos de Huerto</h4>
     <div class="row">
@@ -167,13 +140,8 @@
     </div>
   </div>
 
-  <!-- II. CONFIGURACIÓN DE POSICIONES -->
   <div class="card">
     <h4>II. Configuración de Mediciones (100 frutos)</h4>
-    <p style="font-size:13px; color:#64748b; margin-bottom:10px;">
-      Configure las <b>posiciones</b> y <b>pardeamiento</b> para cada fruto. Solo las filas con posición seleccionada recibirán datos del NFC.
-    </p>
-    
     <div class="table-container">
       <table>
         <thead>
@@ -189,7 +157,6 @@
         <tbody id="configBody"></tbody>
       </table>
     </div>
-
     <div class="actions">
       <button id="btnScan" class="btn btn-primary">📡 Escanear Atago NFC</button>
       <button id="btnSend" class="btn btn-success">✅ Enviar Datos</button>
@@ -197,509 +164,2405 @@
     </div>
   </div>
 
-  <!-- ESTADÍSTICAS -->
   <div class="card">
     <h4>Estadísticas</h4>
     <div class="stats">
-      <div class="stat-item">
-        <div class="stat-value" id="statConfig">0</div>
-        <div class="stat-label">Configuradas</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value" id="statFilled" style="color:#16a34a;">0</div>
-        <div class="stat-label">Con Datos NFC</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-value" id="statPending" style="color:#f59e0b;">0</div>
-        <div class="stat-label">Pendientes</div>
-      </div>
+      <div class="stat-item"><div class="stat-value" id="statConfig">0</div><div class="stat-label">Configuradas</div></div>
+      <div class="stat-item"><div class="stat-value" id="statFilled" style="color:#16a34a;">0</div><div class="stat-label">Con Datos NFC</div></div>
+      <div class="stat-item"><div class="stat-value" id="statPending" style="color:#f59e0b;">0</div><div class="stat-label">Pendientes</div></div>
     </div>
   </div>
-
-  <!-- DEBUG -->
-  <details>
-    <summary style="cursor:pointer; font-size:12px; color:#64748b;">🔍 Ver WebSocket & Debug</summary>
-    <div class="card" style="margin-top:10px;">
-      <div class="row">
-        <div class="col-4">
-          <label>WS Estado</label>
-          <input id="wsState" readonly />
-        </div>
-        <div class="col-4">
-          <label>WS URL</label>
-          <input id="wsUrl" readonly />
-        </div>
-        <div class="col-4">
-          <label>Lecturas NFC</label>
-          <input id="nfcCount" readonly />
-        </div>
-      </div>
-      <div style="margin-top:10px;">
-        <label>Último Payload Enviado</label>
-        <pre id="lastPayload">{}</pre>
-      </div>
-      <div style="margin-top:10px;">
-        <label>Raw NFC Data</label>
-        <textarea id="rawNfc" rows="6" readonly style="font-family:monospace; font-size:11px;"></textarea>
-      </div>
-    </div>
-  </details>
 </div>
 
-<!-- Modal de confirmación -->
 <div id="modalOverlay" class="modal-overlay">
   <div class="modal-content">
     <div class="modal-icon">✅</div>
     <div class="modal-title">¡Datos Enviados!</div>
-    <div class="modal-message" id="modalMessage">Los datos se han enviado correctamente al servidor.</div>
+    <div class="modal-message" id="modalMessage"></div>
     <button class="modal-btn" onclick="closeModal()">Aceptar</button>
   </div>
 </div>
 
 <script>
+  // --- CONFIGURACIÓN DE DATOS ---
+  const mantenedor = [
+    {
+        "CodigoProductor": 104,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LOS TACHOS",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 104,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LOS TACHOS",
+        "Variedad": "SANTINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 104,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LOS TACHOS",
+        "Variedad": "SANTINA",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "AREKO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "AREKO",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "KORDIA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 435",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R18 B99",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R18 B99",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "SWEET SARETTA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "SWEET STEPHANY",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 1143",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 1143",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 177",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "PISUE 177",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R14 B110",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R14 B110",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R14 B141",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R17 B43",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "R17 B43",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "KIR ROSSO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "KIR LAMUR",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1041,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "LA UNION",
+        "Variedad": "KIR VULCANO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 2814,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A",
+        "Campo": "MARIPOSAS",
+        "Variedad": "LAPINS",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 132,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "SANTA GERTRUDIS",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 132,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "SANTA GERTRUDIS",
+        "Variedad": "NIMBA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 132,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "SANTA GERTRUDIS",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY GLOW",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY GLOW",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY MOON",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY TREAT",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CORAL",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "LAPINS",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "NIMBA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "NIMBA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "ROYAL DAWN",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SANTINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SANTINA",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET GABRIEL",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "22-040",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "22-040",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "41-305",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "42-064",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "51-011",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "69-033",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "69-196",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "75-180",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "75-180",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "78-304",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "68-204",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "24-565",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "24-565",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "26-227",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "28-006",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "29-554",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "29-554",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "32-117",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "32-117",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "SWEET VALINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "AREKO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "AREKO",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 435",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R18 B99",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R18 B99",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R18 B99",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "SWEET SARETTA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "SWEET STEPHANY",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 1143",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 1143",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 177",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "PISUE 177",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R10 B10",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R14 B110",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R14 B110",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R14 B141",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R17 B43",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "R17 B43",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "KIR ROSSO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "KIR LAMUR",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1242,
+        "NombreProductor": "SOCIEDAD AGRICOLA SAKURA LIMITADA",
+        "Campo": "SOCIEDAD AGRÍCOLA SAKURA LIMITADA.",
+        "Variedad": "KIR VULCANO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 115,
+        "NombreProductor": "SOC. AGRICOLA TOTIHUAL LTDA",
+        "Campo": "AGRICOLA TOTIHUAL LTDA.",
+        "Variedad": "RAINIER",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 143,
+        "NombreProductor": "VIÑA GARCES SILVA LTDA",
+        "Campo": "FUNDO SANTA TERESA",
+        "Variedad": "LAPINS",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 143,
+        "NombreProductor": "VIÑA GARCES SILVA LTDA",
+        "Campo": "FUNDO SANTA TERESA",
+        "Variedad": "REGINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 143,
+        "NombreProductor": "VIÑA GARCES SILVA LTDA",
+        "Campo": "FUNDO SANTA TERESA",
+        "Variedad": "SANTINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "CHEERY CUPID",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "CHEERY NEBULA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "CHEERY GLOW",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "CHEERY TREAT",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "CHEERY CRUNCH",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "NIPAMA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "NIMBA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": 514,
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": 548,
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 197,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": 533,
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 275,
+        "NombreProductor": "SOCIEDAD AGRICOLA NEWEN SPA",
+        "Campo": "FUNDO EL HUINGAN",
+        "Variedad": "RAINIER",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 241,
+        "NombreProductor": "CEREZOS PROSECOR SPA",
+        "Campo": "CEREZOS PROSECOR",
+        "Variedad": "REGINA",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 243,
+        "NombreProductor": "AGRICOLA DOLLINCO LIMITADA",
+        "Campo": "AGRICOLA DOLLINCO LIMITADA",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 243,
+        "NombreProductor": "AGRICOLA DOLLINCO LIMITADA",
+        "Campo": "AGRICOLA DOLLINCO LIMITADA",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 243,
+        "NombreProductor": "AGRICOLA DOLLINCO LIMITADA",
+        "Campo": "AGRICOLA DOLLINCO LIMITADA",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 243,
+        "NombreProductor": "AGRICOLA DOLLINCO LIMITADA",
+        "Campo": "AGRICOLA DOLLINCO LIMITADA",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 276,
+        "NombreProductor": "AGRICOLA MONTEAGRO SPA",
+        "Campo": "AGRICOLA MONTEAGRO SPA",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 2773,
+        "NombreProductor": "AGRICOLA ALFA",
+        "Campo": "LOS LAGARTOS 2018",
+        "Variedad": "SELECCIÓN 21",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 2773,
+        "NombreProductor": "AGRICOLA ALFA",
+        "Campo": "LOS LAGARTOS 2018",
+        "Variedad": "SELECCIÓN 21",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 2773,
+        "NombreProductor": "AGRICOLA ALFA",
+        "Campo": "LOS LAGARTOS 2018",
+        "Variedad": "42-064",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 2773,
+        "NombreProductor": "AGRICOLA ALFA",
+        "Campo": "LOS LAGARTOS 2018",
+        "Variedad": "42-064",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 2773,
+        "NombreProductor": "AGRICOLA ALFA",
+        "Campo": "LOS LAGARTOS 2018",
+        "Variedad": "X11 42-064",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "238 18",
+        "Portainjerto": "HIBRIDO"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "53 105",
+        "Portainjerto": "HIBRIDO"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "54 05",
+        "Portainjerto": "HIBRIDO"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-05",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-07",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-08",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-11",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-118",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-119",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-12",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-122",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-123",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-13",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-14",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-20",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-21",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-211",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-212",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-23",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-24",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-25",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-26",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-27",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-28",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-29",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-30",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-31",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-319",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-32",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-320",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-34",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-35",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-37",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-38",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-42",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-43",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-45",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-46",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-47",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-48",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-49",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-50",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-57",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-58",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-77",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-78",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-81",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-82",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-89",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-90",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-97",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 993,
+        "NombreProductor": "CONSORCIO TECNOLOGICO DE LA FRUTA",
+        "Campo": "FUNDO QUIMAVIDA",
+        "Variedad": "CHI-98",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "EL CIRUELO",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 2.1",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 3.1",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 3.1",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 2.5",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 2.1",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "PRIM 1.9",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "SANTINA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "LA DIANA",
+        "Variedad": "W1 MEDA BULL 104",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 994,
+        "NombreProductor": "ENSAYOS CERASUS",
+        "Campo": "PABLO COURBIS",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 996,
+        "NombreProductor": "VIVEROS REQUINOA LTDA",
+        "Campo": "LOS QUILLAYES",
+        "Variedad": "ROYAL HAZEL",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 996,
+        "NombreProductor": "VIVEROS REQUINOA LTDA",
+        "Campo": "LOS QUILLAYES",
+        "Variedad": "ROYAL LYNN",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 996,
+        "NombreProductor": "VIVEROS REQUINOA LTDA",
+        "Campo": "LOS QUILLAYES",
+        "Variedad": "V1 ROYAL BAILEY",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "ANA CHILE",
+        "Variedad": "VARIAS",
+        "Portainjerto": "CAB 6P"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "ANTUMAPU",
+        "Variedad": "AREKO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "ANTUMAPU",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "ANTUMAPU",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "AREKO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "CHEERY MOON",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "CHEERY TREAT",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "FRISCO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "NIMBA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "NIMBA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "NIMBA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "PISUE 376",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET GABRIEL",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "69-033",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "78-304",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SELECCION 16",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SELECCION 16",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SELECCION 6",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SELECCION 6",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET SARETTA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET SARETTA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET SARETTA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET STEPHANY",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET STEPHANY",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET STEPHANY",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "SWEET VALINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "NIPAMA ",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "EL TAMBO",
+        "Variedad": "NIPAMA ",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "AREKO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "FRISCO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "FRISCO",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "NIMBA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "NIMBA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "NIMBA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "PACIFIC RED",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "POLKA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET GABRIEL",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET GABRIEL",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET LORENZ",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "CHERRY V690630",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SELECCION 16",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SELECCION 6",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET VALINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "SWEET VALINA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "NIPAMA ",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "UNIVIVEROS",
+        "Variedad": "PISUE 177",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "SAGRADA FAMILIA",
+        "Variedad": "SWEET ARYANA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 997,
+        "NombreProductor": "A.N.A. CHILE VIVEROS ASOCIADOS CHILE LTDA ",
+        "Campo": "CENTRO EVALUATIVO LA FAVORITA ",
+        "Variedad": "AREKO",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "LAPINS",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "SANTINA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W1 MEDA BULL 104",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W2 MEDA WOLF 105",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W3 MEDA TIGER 524",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W4 563",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W5 407",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W6 303",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W7 533",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W8 96-130",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "RAUCO",
+        "Variedad": "W9 552",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "601",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "603 KORLA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "IVU568",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "IVU-805",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "IVU-814W",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "MEDA REX",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "RAINIER",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "SANTINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W1 MEDA BULL 104",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W10 548",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W11 549",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W12 514",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W13 806",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W14 818",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W15 833",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W16 571",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W17569",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W18 804",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W2 MEDA WOLF 105",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W3 MEDA TIGER 524",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W4 563",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W5 407",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W6 303",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W7 533",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W8 96-130",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 998,
+        "NombreProductor": "IVU CHILE SPA ",
+        "Campo": "TENO",
+        "Variedad": "W9 552",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 2858,
+        "NombreProductor": "AGRO SABIO CHILE SPA",
+        "Campo": "HUERTO SANTA HILDA",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 2858,
+        "NombreProductor": "AGRO SABIO CHILE SPA",
+        "Campo": "HUERTO SANTA HILDA",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 2858,
+        "NombreProductor": "AGRO SABIO CHILE SPA",
+        "Campo": "HUERTO SANTA HILDA",
+        "Variedad": "AREKO",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 242,
+        "NombreProductor": "AGRICOLA LOS ROBLES LTDA",
+        "Campo": "FUNDO LOMAHUE",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 242,
+        "NombreProductor": "AGRICOLA LOS ROBLES LTDA",
+        "Campo": "FUNDO LOMAHUE",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 219,
+        "NombreProductor": "AGRICOLA Y GANADERA LOS CORRALES SA",
+        "Campo": "AGRICOLA Y GANADERA LOS CORRALES SA",
+        "Variedad": "REGINA",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 219,
+        "NombreProductor": "AGRICOLA Y GANADERA LOS CORRALES SA",
+        "Campo": "AGRICOLA Y GANADERA LOS CORRALES SA",
+        "Variedad": "KORDIA",
+        "Portainjerto": "GISELA 6"
+    },
+    
+    {
+        "CodigoProductor": 1362.0,
+        "NombreProductor": "AGRICOLA SAENZ LTDA",
+        "Campo": "TORINA 4",
+        "Variedad": "SANTINA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": null,
+        "NombreProductor": "AGRICOLA TXOKO LTDA",
+        "Campo": "AGRICOLA TXOKO LTDA",
+        "Variedad": "PRIM 1.9",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": null,
+        "NombreProductor": "AGRICOLA TXOKO LTDA",
+        "Campo": "AGRICOLA TXOKO LTDA",
+        "Variedad": "PRIM 2.1",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": null,
+        "NombreProductor": "AGRICOLA TXOKO LTDA",
+        "Campo": "AGRICOLA TXOKO LTDA",
+        "Variedad": "R022",
+        "Portainjerto": "(en blanco)"
+    },
+    {
+        "CodigoProductor": 197.0,
+        "NombreProductor": "AGRICOLA DONAR DOS SPA",
+        "Campo": "ZUÑIGA 2",
+        "Variedad": "SANTINA",
+        "Portainjerto": "MAXMA 14"
+    },
+    {
+        "CodigoProductor": 1321.0,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY CUPID",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321.0,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY CUPID",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1321.0,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY NEBULA",
+        "Portainjerto": "COLT"
+    },
+    {
+        "CodigoProductor": 1321.0,
+        "NombreProductor": "AGRICOLA LAS RUCIAS LTDA",
+        "Campo": "RINCONADA",
+        "Variedad": "CHEERY NEBULA",
+        "Portainjerto": "GISELA 12"
+    },
+    {
+        "CodigoProductor": 1043.0,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A (COLHUE)",
+        "Campo": "COLHUE",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1043.0,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A (COLHUE)",
+        "Campo": "COLHUE",
+        "Variedad": "FINAL 12",
+        "Portainjerto": "GISELA 6"
+    },
+    {
+        "CodigoProductor": 1043.0,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A (COLHUE)",
+        "Campo": "COLHUE",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "GISELA 5"
+    },
+    {
+        "CodigoProductor": 1043.0,
+        "NombreProductor": "EXPORTADORA RANCAGUA S.A (COLHUE)",
+        "Campo": "COLHUE",
+        "Variedad": "FINAL 13",
+        "Portainjerto": "GISELA 6"
+    }
+];
+
   const WS_URL = "wss://iot.ranco.cl/ws4401/ws/envio-form-solidos-solubles";
   const POS_OPS = ["1","2","3","3.3","3.5","3.8","4","5"];
   const PARDE_OPS = ["", "Leve", "Moderado", "Severo"];
   
   const $ = (id) => document.getElementById(id);
   let ws = null;
-  let gridData = []; // Array de 100 elementos
-  let nfcReadings = []; // Lecturas válidas del NFC
-  let mantenedor = []; // Datos del mantenedor.json
+  let gridData = [];
+  let nfcReadings = [];
 
-  // --- Utilidades ---
-  function showErr(m) { 
-    $("err").textContent = m; 
-    $("err").style.display = m ? "block" : "none"; 
-  }
-  
-  function showMsg(m) { 
-    $("msg").textContent = m; 
-    $("msg").style.display = m ? "block" : "none"; 
-    if (m) setTimeout(() => showMsg(""), 4000); 
-  }
+  // --- Funciones de UI ---
+  function showErr(m) { $("err").textContent = m; $("err").style.display = m ? "block" : "none"; }
+  function showMsg(m) { $("msg").textContent = m; $("msg").style.display = m ? "block" : "none"; if(m) setTimeout(()=>showMsg(""), 4000); }
+  function showModal(m) { $("modalMessage").textContent = m; $("modalOverlay").style.display = "flex"; }
+  function closeModal() { $("modalOverlay").style.display = "none"; }
 
-  function showModal(message) {
-    $("modalMessage").textContent = message;
-    $("modalOverlay").style.display = "flex";
+  // --- Lógica de Desplegables ---
+  function uniq(arr) { return [...new Set(arr)].filter(v => v != null && String(v).trim() !== ""); }
+  function setOptions(el, values, placeholder) {
+    el.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${v}">${v}</option>`).join("");
   }
 
-  function closeModal() {
-    $("modalOverlay").style.display = "none";
-  }
-
-  function uniq(arr) {
-    return [...new Set(arr)].filter(v => v !== undefined && v !== null && String(v).trim() !== "");
-  }
-
-  function setOptions(selectEl, values, placeholder = "Seleccione") {
-    selectEl.innerHTML = `<option value="">${placeholder}</option>` +
-      values.map(v => `<option value="${String(v)}">${String(v)}</option>`).join("");
-  }
-
-  function parseCodigo(productorValue) {
-    // "104 - EXPORTADORA ..." => 104
-    const code = String(productorValue).split(" - ")[0];
-    const n = Number(code);
-    return isNaN(n) ? null : n;
-  }
-
-  // --- Mantenedor ---
-  async function loadMantenedor() {
-    try {
-      const res = await fetch("./mantenedor.json", { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      mantenedor = await res.json();
-
-      // Productores (mostrar "Codigo - Nombre")
-      const productores = uniq(mantenedor.map(x => {
-        const codigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? x.CodigoProductor : "S/C";
-        return `${codigo} - ${x.NombreProductor}`;
-      }));
-      setOptions($("productor"), productores, "Seleccione productor");
-
-      // Inicializar vacíos
-      setOptions($("campo"), [], "Seleccione campo");
-      setOptions($("variedad"), [], "Seleccione variedad");
-      setOptions($("portaIngerto"), [], "Seleccione porta injerto");
-
-      showMsg("📋 Mantenedor cargado correctamente.");
-    } catch (e) {
-      showErr("❌ No pude cargar mantenedor.json: " + e.message);
-    }
-  }
-
-  function onProductorChange() {
-    const codigo = parseCodigo($("productor").value);
-    const rows = mantenedor.filter(x => {
-      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
-      return xCodigo === codigo;
-    });
-
-    setOptions($("campo"), uniq(rows.map(x => x.Campo)), "Seleccione campo");
+  function initMantenedor() {
+    const productores = uniq(mantenedor.map(x => `${x.CodigoProductor || 'S/C'} - ${x.NombreProductor}`));
+    setOptions($("productor"), productores, "Seleccione productor");
+    setOptions($("campo"), [], "Seleccione campo");
     setOptions($("variedad"), [], "Seleccione variedad");
     setOptions($("portaIngerto"), [], "Seleccione porta injerto");
   }
 
-  function onCampoChange() {
-    const codigo = parseCodigo($("productor").value);
-    const campoVal = $("campo").value;
-    const rows = mantenedor.filter(x => {
-      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
-      return xCodigo === codigo && String(x.Campo) === String(campoVal);
-    });
+  $("productor").onchange = () => {
+    const cod = $("productor").value.split(" - ")[0];
+    const rows = mantenedor.filter(x => String(x.CodigoProductor) === cod || (cod === 'S/C' && !x.CodigoProductor));
+    setOptions($("campo"), uniq(rows.map(x => x.Campo)), "Seleccione campo");
+    setOptions($("variedad"), [], "Seleccione variedad");
+  };
+
+  $("campo").onchange = () => {
+    const cod = $("productor").value.split(" - ")[0];
+    const rows = mantenedor.filter(x => (String(x.CodigoProductor) === cod || (cod === 'S/C' && !x.CodigoProductor)) && x.Campo === $("campo").value);
     setOptions($("variedad"), uniq(rows.map(x => x.Variedad)), "Seleccione variedad");
-    setOptions($("portaIngerto"), [], "Seleccione porta injerto");
-  }
+  };
 
-  function onVariedadChange() {
-    const codigo = parseCodigo($("productor").value);
-    const campoVal = $("campo").value;
-    const varVal = $("variedad").value;
-
-    const rows = mantenedor.filter(x => {
-      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
-      return xCodigo === codigo &&
-        String(x.Campo) === String(campoVal) &&
-        String(x.Variedad) === String(varVal);
-    });
-
+  $("variedad").onchange = () => {
+    const cod = $("productor").value.split(" - ")[0];
+    const rows = mantenedor.filter(x => (String(x.CodigoProductor) === cod || (cod === 'S/C' && !x.CodigoProductor)) && x.Campo === $("campo").value && String(x.Variedad) === $("variedad").value);
     setOptions($("portaIngerto"), uniq(rows.map(x => x.Portainjerto)), "Seleccione porta injerto");
-  }
+  };
 
   // --- WebSocket ---
   function connectWS() {
-    $("wsUrl").value = WS_URL;
     ws = new WebSocket(WS_URL);
-    ws.onopen = () => $("wsState").value = "CONECTADO";
-    ws.onclose = () => { 
-      $("wsState").value = "DESCONECTADO"; 
-      setTimeout(connectWS, 3000); 
-    };
-    ws.onerror = () => $("wsState").value = "ERROR";
-    ws.onmessage = (e) => { 
-      console.log("Server:", e.data); 
-      try {
-        const data = JSON.parse(e.data);
-        if (data.success) {
-          console.log("✅ Servidor confirmó recepción exitosa");
-        } else {
-          console.log("⚠️ Servidor respondió: " + (data.message || "Error desconocido"));
-        }
-      } catch {
-        console.log("Respuesta del servidor recibida");
-      }
-    };
+    ws.onopen = () => console.log("WS Conectado");
+    ws.onclose = () => setTimeout(connectWS, 3000);
+    ws.onmessage = (e) => console.log("Server:", e.data);
   }
 
-  // --- Inicializar Grid ---
+  // --- Grid & NFC ---
   function initGrid() {
-    gridData = [];
-    const tbody = $("configBody");
-    tbody.innerHTML = "";
-
+    const tbody = $("configBody"); tbody.innerHTML = ""; gridData = [];
     for (let i = 1; i <= 100; i++) {
-      const row = {
-        nFruto: i,
-        posicion: "",
-        pardeamiento: "",
-        datetime: "",
-        brix: null,
-        temp: null
-      };
-      gridData.push(row);
-
-      const tr = document.createElement("tr");
-      tr.id = `row-${i}`;
-
-      tr.innerHTML = `
-        <td><b>${i}</b></td>
-        <td>
-          <select id="pos-${i}" class="small-input" onchange="updateRow(${i})">
-            <option value="">-</option>
-            ${POS_OPS.map(p => `<option value="${p}">${p}</option>`).join('')}
-          </select>
-        </td>
-        <td>
-          <select id="par-${i}" class="small-input" onchange="updateRow(${i})">
-            ${PARDE_OPS.map(p => `<option value="${p}">${p || 'Ninguno'}</option>`).join('')}
-          </select>
-        </td>
-        <td id="dt-${i}" class="val-date">-</td>
-        <td id="brix-${i}">-</td>
-        <td id="temp-${i}" style="font-size:12px; color:#64748b;">-</td>
-      `;
+      gridData.push({ nFruto: i, posicion: "", pardeamiento: "", brix: null, temp: null, datetime: "" });
+      const tr = document.createElement("tr"); tr.id = `row-${i}`;
+      tr.innerHTML = `<td>${i}</td>
+        <td><select id="pos-${i}" class="small-input" onchange="updateRow(${i})"><option value="">-</option>${POS_OPS.map(p=>`<option value="${p}">${p}</option>`).join('')}</select></td>
+        <td><select id="par-${i}" class="small-input" onchange="updateRow(${i})">${PARDE_OPS.map(p=>`<option value="${p}">${p||'Ninguno'}</option>`).join('')}</select></td>
+        <td id="dt-${i}" class="val-date">-</td><td id="brix-${i}">-</td><td id="temp-${i}">-</td>`;
       tbody.appendChild(tr);
     }
     updateStats();
   }
 
   function updateRow(n) {
-    const idx = n - 1;
-    gridData[idx].posicion = $(`pos-${n}`).value;
-    gridData[idx].pardeamiento = $(`par-${n}`).value;
-    
-    const tr = $(`row-${n}`);
-    if (gridData[idx].posicion) {
-      tr.classList.add("row-active");
-    } else {
-      tr.classList.remove("row-active");
-      tr.classList.remove("row-filled");
-    }
+    const r = gridData[n-1]; r.posicion = $(`pos-${n}`).value; r.pardeamiento = $(`par-${n}`).value;
+    $(`row-${n}`).className = r.posicion ? "row-active" : "";
     updateStats();
   }
 
   function updateStats() {
-    const configured = gridData.filter(r => r.posicion !== "").length;
-    const filled = gridData.filter(r => r.posicion !== "" && r.brix !== null).length;
-    const pending = configured - filled;
-
-    $("statConfig").textContent = configured;
-    $("statFilled").textContent = filled;
-    $("statPending").textContent = pending;
+    const conf = gridData.filter(r => r.posicion).length;
+    const fill = gridData.filter(r => r.posicion && r.brix !== null).length;
+    $("statConfig").textContent = conf; $("statFilled").textContent = fill; $("statPending").textContent = conf - fill;
   }
 
-  // --- NFC Scanner ---
   async function scanNFC() {
-    if (!("NDEFReader" in window)) {
-      return showErr("❌ NFC no soportado. Use Android + Chrome en HTTPS.");
-    }
-
-    // Validar que haya al menos una posición configurada
-    const configured = gridData.filter(r => r.posicion !== "");
-    if (configured.length === 0) {
-      return showErr("⚠️ Configure al menos una posición antes de escanear.");
-    }
-    
+    if (!("NDEFReader" in window)) return showErr("NFC no soportado.");
     try {
-      const reader = new NDEFReader();
-      await reader.scan();
-      showMsg("📡 Escaneando... acerque el Atago al dispositivo.");
-
-      reader.onreading = (event) => {
-        const decoder = new TextDecoder();
-        let rawText = "";
-        for (const record of event.message.records) {
-          rawText += decoder.decode(record.data);
-        }
-        $("rawNfc").value = rawText;
-        processNfcData(rawText);
+      const reader = new NDEFReader(); await reader.scan();
+      showMsg("📡 Acerque el Atago...");
+      reader.onreading = (e) => {
+        const decoder = new TextDecoder(); let text = "";
+        for (const record of e.message.records) text += decoder.decode(record.data);
+        processNfc(text);
       };
-
-      reader.onreadingerror = () => {
-        showErr("❌ Error al leer NFC. Intente nuevamente.");
-      };
-
-    } catch (e) { 
-      showErr("❌ Error al iniciar NFC: " + e.message); 
-    }
+    } catch (err) { showErr("Error NFC: " + err.message); }
   }
 
-  function processNfcData(text) {
-    const lines = text.split(/\r?\n/);
-    nfcReadings = [];
-    
-    // Regex: 2026/01/06 10:54:53,    16.7,    21.8
+  function processNfc(text) {
     const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([\d.]+)/;
-
-    lines.forEach(line => {
-      const m = line.match(re);
-      if (m) {
-        const brixRaw = m[2].trim();
-        const brixNum = parseFloat(brixRaw);
-        
-        // FILTRO: Ignorar LLL, 0.0 y valores no numéricos
-        if (!isNaN(brixNum) && 
-            brixRaw.toUpperCase() !== "LLL" && 
-            brixNum > 0 &&
-            brixNum >= 7 && 
-            brixNum <= 35) {
-          nfcReadings.push({
-            datetime: m[1],
-            brix: brixNum.toFixed(1),
-            temp: parseFloat(m[3]).toFixed(1)
-          });
-        }
+    const readings = text.split(/\n/).map(l => l.match(re)).filter(m => m && parseFloat(m[2]) > 0);
+    const confRows = gridData.filter(r => r.posicion);
+    confRows.forEach((row, i) => {
+      if (readings[i]) {
+        row.datetime = readings[i][1]; row.brix = parseFloat(readings[i][2]); row.temp = parseFloat(readings[i][3]);
+        $(`dt-${row.nFruto}`).textContent = row.datetime.split(' ')[1];
+        $(`brix-${row.nFruto}`).innerHTML = `<span class="val-brix">${row.brix}</span>`;
+        $(`temp-${row.nFruto}`).textContent = row.temp;
+        $(`row-${row.nFruto}`).classList.add("row-filled");
       }
     });
-
-    $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
-    applyNfcToGrid();
+    updateStats(); showMsg("✅ Datos NFC aplicados.");
   }
 
-  function applyNfcToGrid() {
-    if (nfcReadings.length === 0) {
-      return showErr("❌ No se encontraron lecturas válidas en el NFC.");
-    }
-
-    // Obtener solo las filas configuradas (con posición)
-    const configuredRows = gridData.filter(r => r.posicion !== "");
-    
-    if (configuredRows.length === 0) {
-      return showErr("⚠️ No hay filas configuradas para recibir datos.");
-    }
-
-    let applied = 0;
-    configuredRows.forEach((row, index) => {
-      if (index < nfcReadings.length) {
-        const reading = nfcReadings[index];
-        row.datetime = reading.datetime;
-        row.brix = parseFloat(reading.brix);
-        row.temp = parseFloat(reading.temp);
-
-        // Actualizar UI
-        const n = row.nFruto;
-        $(`dt-${n}`).textContent = reading.datetime.split(' ')[1]; // Solo hora
-        $(`brix-${n}`).innerHTML = `<span class="val-brix">${reading.brix}</span>`;
-        $(`temp-${n}`).textContent = reading.temp;
-        $(`row-${n}`).classList.add("row-filled");
-        
-        applied++;
-      }
-    });
-
-    updateStats();
-    showMsg(`✅ ${applied} mediciones aplicadas correctamente a las filas configuradas.`);
-  }
-
-  // --- Limpiar campos ---
-  function clearHeaderFields(keepDate = true) {
-    $("evaluacion").value = "";
-    $("tipoEvaluacion").value = "";
-    $("nLote").value = "";
-    $("productor").value = "";
-    $("campo").value = "";
-    $("variedad").value = "";
-    $("portaIngerto").value = "";
-    $("tratamiento").value = "";
-    $("repeticion").value = "";
-
-    if (keepDate) {
-      $("fecha").valueAsDate = new Date();
-    } else {
-      $("fecha").value = "";
-    }
-  }
-
-  function clearMeasurements() {
-    initGrid();
-    $("rawNfc").value = "";
-    $("nfcCount").value = "";
-    nfcReadings = [];
-    $("lastPayload").textContent = "{}";
-  }
-
-  function resetAll() {
-    if (!confirm("¿Está seguro de limpiar todos los datos?")) return;
-    clearHeaderFields(true);
-    clearMeasurements();
-    showMsg("🔄 Datos limpiados correctamente.");
-    showErr("");
-  }
-
-  // --- Envío de Datos ---
+  // --- ENVÍO ---
   function sendData() {
-    showErr(""); // limpia errores previos
-
-    // Validar campos obligatorios
-    if (
-      !$("evaluacion").value || !$("tipoEvaluacion").value ||
-      !$("productor").value || !$("campo").value ||
-      !$("variedad").value || !$("nLote").value || !$("fecha").value
-    ) {
-      return showErr("⚠️ Complete todos los campos obligatorios (*) del huerto.");
+    if (!$("evaluacion").value || !$("productor").value || !$("variedad").value || !$("nLote").value) {
+      return showErr("⚠️ Complete los campos obligatorios (*)");
     }
-
-    // Obtener TODAS las filas configuradas (con o sin brix)
-    const dataToSend = gridData.filter(r => r.posicion !== "");
-    
-    if (dataToSend.length === 0) {
-      return showErr("⚠️ No hay posiciones configuradas para enviar.");
-    }
+    const data = gridData.filter(r => r.posicion);
+    if (data.length === 0) return showErr("⚠️ No hay posiciones configuradas.");
 
     const payload = {
-      evaluacion: $("evaluacion").value,
-      tipoEvaluacion: $("tipoEvaluacion").value,
-      productor: $("productor").value,
-      campo: $("campo").value,
-      variedad: $("variedad").value,
-      nLote: $("nLote").value,
-      fecha: $("fecha").value,
-      tratamiento: $("tratamiento").value || "",
-      portaIngerto: $("portaIngerto").value || "",
-      repeticion: $("repeticion").value ? parseInt($("repeticion").value, 10) : null,
-      timestamp: new Date().toISOString(),
+      evaluacion: $("evaluacion").value, productor: $("productor").value, campo: $("campo").value,
+      variedad: $("variedad").value, nLote: $("nLote").value, fecha: $("fecha").value,
       tipoFormulario: "solido_soluble",
-      solidoSoluble: dataToSend.map(r => ({
-        nFruto: r.nFruto,
-        posicion: r.posicion,
-        brix: r.brix,
-        pardeamiento: r.pardeamiento,
-        atago_datetime: r.datetime,
-        atago_temp: r.temp
-      }))
+      solidoSoluble: data.map(r => ({ nFruto: r.nFruto, posicion: r.posicion, brix: r.brix, pardeamiento: r.pardeamiento }))
     };
 
-    // UI: feedback inmediato
-    const btn = $("btnSend");
-    btn.disabled = true;
-    btn.textContent = "⏳ Enviando...";
+    if (ws && ws.readyState === 1) ws.send(JSON.stringify(payload));
 
-    // Guardar debug
-    $("lastPayload").textContent = JSON.stringify(payload, null, 2);
-
-    // Envío por WebSocket
-    const canSend = (ws && ws.readyState === WebSocket.OPEN);
-
-    if (canSend) {
-      ws.send(JSON.stringify(payload));
-    }
-
-    // SIEMPRE mostrar modal de confirmación
-    const conBrix = dataToSend.filter(r => r.brix !== null).length;
-    const sinBrix = dataToSend.length - conBrix;
+    const conB = data.filter(r => r.brix != null).length;
+    showModal(`¡Enviado con éxito!\nTotal registros: ${data.length}\nCon Brix: ${conB}\nSin Brix: ${data.length - conB}`);
     
-    let mensaje = `Se enviaron ${dataToSend.length} registros correctamente.`;
-    if (sinBrix > 0) {
-      mensaje += `\n\n${conBrix} con datos Brix y ${sinBrix} sin datos Brix.`;
-    }
-
-    // Mostrar modal
-    setTimeout(() => {
-      showModal(mensaje);
-      
-      // Limpiar formulario después de mostrar modal
-      clearHeaderFields(true);
-      clearMeasurements();
-      
-      // Restaurar botón
-      btn.disabled = false;
-      btn.textContent = "✅ Enviar Datos";
-    }, 500);
+    setTimeout(() => { initGrid(); $("nLote").value = ""; }, 500);
   }
 
-  // --- Inicialización ---
+  // --- Inicio ---
   $("fecha").valueAsDate = new Date();
-  connectWS();
-  initGrid();
-  loadMantenedor();
-
+  initGrid(); initMantenedor(); connectWS();
   $("btnScan").onclick = scanNFC;
   $("btnSend").onclick = sendData;
-  $("btnReset").onclick = resetAll;
-
-  $("productor").addEventListener("change", onProductorChange);
-  $("campo").addEventListener("change", onCampoChange);
-  $("variedad").addEventListener("change", onVariedadChange);
-
-  // Cerrar modal al hacer click fuera
-  $("modalOverlay").addEventListener("click", function(e) {
-    if (e.target === this) {
-      closeModal();
-    }
-  });
-
+  $("btnReset").onclick = () => confirm("¿Limpiar todo?") && location.reload();
 </script>
-
 </body>
 </html>
