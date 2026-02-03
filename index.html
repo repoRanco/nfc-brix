@@ -51,6 +51,57 @@
     .stat-label { font-size: 11px; color: #64748b; margin-top: 4px; text-transform: uppercase; }
     
     .actions { display: flex; gap: 10px; margin-top: 15px; }
+
+    /* Modal de confirmación */
+    .modal-overlay { 
+      display: none; 
+      position: fixed; 
+      top: 0; 
+      left: 0; 
+      width: 100%; 
+      height: 100%; 
+      background: rgba(0,0,0,0.5); 
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 30px;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .modal-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    .modal-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #16a34a;
+      margin-bottom: 10px;
+    }
+    .modal-message {
+      font-size: 16px;
+      color: #64748b;
+      margin-bottom: 25px;
+    }
+    .modal-btn {
+      padding: 12px 30px;
+      background: #16a34a;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-btn:hover {
+      background: #15803d;
+    }
   </style>
 </head>
 <body>
@@ -91,21 +142,25 @@
       </div>
       <div class="col-6">
         <label>Productor *</label>
-        <input id="productor" placeholder="Código productor" />
+        <select id="productor"></select>
+      </div>
+      <div class="col-6">
+        <label>Campo *</label>
+        <select id="campo"></select>
       </div>
       <div class="col-6">
         <label>Variedad *</label>
-        <input id="variedad" placeholder="Variedad" />
+        <select id="variedad"></select>
       </div>
-      <div class="col-4">
+      <div class="col-6">
+        <label>Porta Injerto</label>
+        <select id="portaIngerto"></select>
+      </div>
+      <div class="col-6">
         <label>Tratamiento</label>
         <input id="tratamiento" />
       </div>
-      <div class="col-4">
-        <label>Porta Injerto</label>
-        <input id="portaIngerto" />
-      </div>
-      <div class="col-4">
+      <div class="col-6">
         <label>Repetición</label>
         <input id="repeticion" type="number" />
       </div>
@@ -191,6 +246,16 @@
   </details>
 </div>
 
+<!-- Modal de confirmación -->
+<div id="modalOverlay" class="modal-overlay">
+  <div class="modal-content">
+    <div class="modal-icon">✅</div>
+    <div class="modal-title">¡Datos Enviados!</div>
+    <div class="modal-message" id="modalMessage">Los datos se han enviado correctamente al servidor.</div>
+    <button class="modal-btn" onclick="closeModal()">Aceptar</button>
+  </div>
+</div>
+
 <script>
   const WS_URL = "wss://iot.ranco.cl/ws4401/ws/envio-form-solidos-solubles";
   const POS_OPS = ["1","2","3","3.3","3.5","3.8","4","5"];
@@ -200,28 +265,132 @@
   let ws = null;
   let gridData = []; // Array de 100 elementos
   let nfcReadings = []; // Lecturas válidas del NFC
+  let mantenedor = []; // Datos del mantenedor.json
+
+  // --- Utilidades ---
+  function showErr(m) { 
+    $("err").textContent = m; 
+    $("err").style.display = m ? "block" : "none"; 
+  }
+  
+  function showMsg(m) { 
+    $("msg").textContent = m; 
+    $("msg").style.display = m ? "block" : "none"; 
+    if (m) setTimeout(() => showMsg(""), 4000); 
+  }
+
+  function showModal(message) {
+    $("modalMessage").textContent = message;
+    $("modalOverlay").style.display = "flex";
+  }
+
+  function closeModal() {
+    $("modalOverlay").style.display = "none";
+  }
+
+  function uniq(arr) {
+    return [...new Set(arr)].filter(v => v !== undefined && v !== null && String(v).trim() !== "");
+  }
+
+  function setOptions(selectEl, values, placeholder = "Seleccione") {
+    selectEl.innerHTML = `<option value="">${placeholder}</option>` +
+      values.map(v => `<option value="${String(v)}">${String(v)}</option>`).join("");
+  }
+
+  function parseCodigo(productorValue) {
+    // "104 - EXPORTADORA ..." => 104
+    const code = String(productorValue).split(" - ")[0];
+    const n = Number(code);
+    return isNaN(n) ? null : n;
+  }
+
+  // --- Mantenedor ---
+  async function loadMantenedor() {
+    try {
+      const res = await fetch("./mantenedor.json", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      mantenedor = await res.json();
+
+      // Productores (mostrar "Codigo - Nombre")
+      const productores = uniq(mantenedor.map(x => {
+        const codigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? x.CodigoProductor : "S/C";
+        return `${codigo} - ${x.NombreProductor}`;
+      }));
+      setOptions($("productor"), productores, "Seleccione productor");
+
+      // Inicializar vacíos
+      setOptions($("campo"), [], "Seleccione campo");
+      setOptions($("variedad"), [], "Seleccione variedad");
+      setOptions($("portaIngerto"), [], "Seleccione porta injerto");
+
+      showMsg("📋 Mantenedor cargado correctamente.");
+    } catch (e) {
+      showErr("❌ No pude cargar mantenedor.json: " + e.message);
+    }
+  }
+
+  function onProductorChange() {
+    const codigo = parseCodigo($("productor").value);
+    const rows = mantenedor.filter(x => {
+      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
+      return xCodigo === codigo;
+    });
+
+    setOptions($("campo"), uniq(rows.map(x => x.Campo)), "Seleccione campo");
+    setOptions($("variedad"), [], "Seleccione variedad");
+    setOptions($("portaIngerto"), [], "Seleccione porta injerto");
+  }
+
+  function onCampoChange() {
+    const codigo = parseCodigo($("productor").value);
+    const campoVal = $("campo").value;
+    const rows = mantenedor.filter(x => {
+      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
+      return xCodigo === codigo && String(x.Campo) === String(campoVal);
+    });
+    setOptions($("variedad"), uniq(rows.map(x => x.Variedad)), "Seleccione variedad");
+    setOptions($("portaIngerto"), [], "Seleccione porta injerto");
+  }
+
+  function onVariedadChange() {
+    const codigo = parseCodigo($("productor").value);
+    const campoVal = $("campo").value;
+    const varVal = $("variedad").value;
+
+    const rows = mantenedor.filter(x => {
+      const xCodigo = x.CodigoProductor !== null && x.CodigoProductor !== undefined ? Number(x.CodigoProductor) : null;
+      return xCodigo === codigo &&
+        String(x.Campo) === String(campoVal) &&
+        String(x.Variedad) === String(varVal);
+    });
+
+    setOptions($("portaIngerto"), uniq(rows.map(x => x.Portainjerto)), "Seleccione porta injerto");
+  }
 
   // --- WebSocket ---
   function connectWS() {
     $("wsUrl").value = WS_URL;
     ws = new WebSocket(WS_URL);
     ws.onopen = () => $("wsState").value = "CONECTADO";
-    ws.onclose = () => { $("wsState").value = "DESCONECTADO"; setTimeout(connectWS, 3000); };
+    ws.onclose = () => { 
+      $("wsState").value = "DESCONECTADO"; 
+      setTimeout(connectWS, 3000); 
+    };
     ws.onerror = () => $("wsState").value = "ERROR";
     ws.onmessage = (e) => { 
       console.log("Server:", e.data); 
       try {
         const data = JSON.parse(e.data);
-        if (data.success) showMsg("✅ Servidor confirmó recepción exitosa");
-        else showErr("⚠️ Servidor respondió: " + (data.message || "Error desconocido"));
+        if (data.success) {
+          console.log("✅ Servidor confirmó recepción exitosa");
+        } else {
+          console.log("⚠️ Servidor respondió: " + (data.message || "Error desconocido"));
+        }
       } catch {
-        showMsg("Respuesta del servidor recibida");
+        console.log("Respuesta del servidor recibida");
       }
     };
   }
-
-  function showErr(m) { $("err").textContent = m; $("err").style.display = m ? "block" : "none"; }
-  function showMsg(m) { $("msg").textContent = m; $("msg").style.display = m ? "block" : "none"; setTimeout(()=>showMsg(""), 4000); }
 
   // --- Inicializar Grid ---
   function initGrid() {
@@ -393,32 +562,72 @@
     showMsg(`✅ ${applied} mediciones aplicadas correctamente a las filas configuradas.`);
   }
 
+  // --- Limpiar campos ---
+  function clearHeaderFields(keepDate = true) {
+    $("evaluacion").value = "";
+    $("tipoEvaluacion").value = "";
+    $("nLote").value = "";
+    $("productor").value = "";
+    $("campo").value = "";
+    $("variedad").value = "";
+    $("portaIngerto").value = "";
+    $("tratamiento").value = "";
+    $("repeticion").value = "";
+
+    if (keepDate) {
+      $("fecha").valueAsDate = new Date();
+    } else {
+      $("fecha").value = "";
+    }
+  }
+
+  function clearMeasurements() {
+    initGrid();
+    $("rawNfc").value = "";
+    $("nfcCount").value = "";
+    nfcReadings = [];
+    $("lastPayload").textContent = "{}";
+  }
+
+  function resetAll() {
+    if (!confirm("¿Está seguro de limpiar todos los datos?")) return;
+    clearHeaderFields(true);
+    clearMeasurements();
+    showMsg("🔄 Datos limpiados correctamente.");
+    showErr("");
+  }
+
   // --- Envío de Datos ---
   function sendData() {
+    showErr(""); // limpia errores previos
+
     // Validar campos obligatorios
-    if (!$("evaluacion").value || !$("tipoEvaluacion").value || 
-        !$("productor").value || !$("variedad").value || 
-        !$("nLote").value || !$("fecha").value) {
+    if (
+      !$("evaluacion").value || !$("tipoEvaluacion").value ||
+      !$("productor").value || !$("campo").value ||
+      !$("variedad").value || !$("nLote").value || !$("fecha").value
+    ) {
       return showErr("⚠️ Complete todos los campos obligatorios (*) del huerto.");
     }
 
-    // Obtener solo las filas con datos completos
-    const dataToSend = gridData.filter(r => r.posicion !== "" && r.brix !== null);
-
+    // Obtener TODAS las filas configuradas (con o sin brix)
+    const dataToSend = gridData.filter(r => r.posicion !== "");
+    
     if (dataToSend.length === 0) {
-      return showErr("⚠️ No hay datos para enviar. Configure posiciones y escanee el NFC.");
+      return showErr("⚠️ No hay posiciones configuradas para enviar.");
     }
 
     const payload = {
       evaluacion: $("evaluacion").value,
       tipoEvaluacion: $("tipoEvaluacion").value,
       productor: $("productor").value,
+      campo: $("campo").value,
       variedad: $("variedad").value,
       nLote: $("nLote").value,
       fecha: $("fecha").value,
       tratamiento: $("tratamiento").value || "",
       portaIngerto: $("portaIngerto").value || "",
-      repeticion: $("repeticion").value ? parseInt($("repeticion").value) : null,
+      repeticion: $("repeticion").value ? parseInt($("repeticion").value, 10) : null,
       timestamp: new Date().toISOString(),
       tipoFormulario: "solido_soluble",
       solidoSoluble: dataToSend.map(r => ({
@@ -431,33 +640,64 @@
       }))
     };
 
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(payload));
-      $("lastPayload").textContent = JSON.stringify(payload, null, 2);
-      showMsg(`✅ ${dataToSend.length} mediciones enviadas correctamente.`);
-    } else {
-      showErr("❌ WebSocket no conectado. Verifique la conexión.");
-    }
-  }
+    // UI: feedback inmediato
+    const btn = $("btnSend");
+    btn.disabled = true;
+    btn.textContent = "⏳ Enviando...";
 
-  function resetAll() {
-    if (!confirm("¿Está seguro de limpiar todos los datos?")) return;
+    // Guardar debug
+    $("lastPayload").textContent = JSON.stringify(payload, null, 2);
+
+    // Envío por WebSocket
+    const canSend = (ws && ws.readyState === WebSocket.OPEN);
+
+    if (canSend) {
+      ws.send(JSON.stringify(payload));
+    }
+
+    // SIEMPRE mostrar modal de confirmación
+    const conBrix = dataToSend.filter(r => r.brix !== null).length;
+    const sinBrix = dataToSend.length - conBrix;
     
-    initGrid();
-    $("rawNfc").value = "";
-    $("nfcCount").value = "";
-    nfcReadings = [];
-    showMsg("🔄 Datos limpiados correctamente.");
+    let mensaje = `Se enviaron ${dataToSend.length} registros correctamente.`;
+    if (sinBrix > 0) {
+      mensaje += `\n\n${conBrix} con datos Brix y ${sinBrix} sin datos Brix.`;
+    }
+
+    // Mostrar modal
+    setTimeout(() => {
+      showModal(mensaje);
+      
+      // Limpiar formulario después de mostrar modal
+      clearHeaderFields(true);
+      clearMeasurements();
+      
+      // Restaurar botón
+      btn.disabled = false;
+      btn.textContent = "✅ Enviar Datos";
+    }, 500);
   }
 
   // --- Inicialización ---
   $("fecha").valueAsDate = new Date();
   connectWS();
   initGrid();
+  loadMantenedor();
 
   $("btnScan").onclick = scanNFC;
   $("btnSend").onclick = sendData;
   $("btnReset").onclick = resetAll;
+
+  $("productor").addEventListener("change", onProductorChange);
+  $("campo").addEventListener("change", onCampoChange);
+  $("variedad").addEventListener("change", onVariedadChange);
+
+  // Cerrar modal al hacer click fuera
+  $("modalOverlay").addEventListener("click", function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
 
 </script>
 
