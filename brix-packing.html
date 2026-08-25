@@ -2664,7 +2664,7 @@
     });
 
     // Se descartan las lecturas con error; se toman las últimas 10 lecturas válidas.
-    nfcReadings = parsed.slice(-10);
+    nfcReadings = parsed.slice(0, 10);
 
     $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
     applyNfcToGrid();
@@ -2682,7 +2682,7 @@
       row.brix = parseFloat(reading.brix);
       row.temp = parseFloat(reading.temp);
 
-      $(`dt-${n}`).textContent = reading.datetime.split(' ')[1];
+      $(`dt-${n}`).textContent = reading.datetime;
       $(`brix-${n}`).innerHTML = `<span class="val-brix">${reading.brix}</span>`;
       $(`temp-${n}`).textContent = reading.temp;
       $(`row-${n}`).classList.add("row-filled");
