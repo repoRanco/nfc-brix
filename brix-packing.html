@@ -2637,19 +2637,26 @@
 
   function processNfcData(text) {
     const lines = text.split(/\r?\n/);
-    const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([\d.]+)/;
+    const dateRe = /^\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2}$/;
 
     const parsed = [];
     lines.forEach(line => {
-      const m = line.match(re);
-      if (!m) return;
+      const parts = line.split(",");
+      if (parts.length < 3) return;
 
-      const brixRaw = m[2].trim();
+      const datetimeStr = parts[0].trim();
+      if (!dateRe.test(datetimeStr)) return;
+
+      // El Atago puede exportar 3 columnas (Fecha, Brix, Temp) o 5 (Fecha, Brix, Acidez, Ratio, Temp).
+      // La Temp siempre es la ÚLTIMA columna; la Acidez/Ratio intermedias se ignoran.
+      const brixRaw = parts[1].trim();
+      const tempRaw = parts[parts.length - 1].trim();
       const brixNum = parseFloat(brixRaw);
+      const tempNum = parseFloat(tempRaw);
 
-      // Datos con error (LLL, fuera de rango, no numéricos) se descartan y no se transmiten.
+      // Datos con error (LLL, HHH, ---, fuera de rango, no numéricos) se descartan y no se transmiten.
       if (isNaN(brixNum) ||
-          brixRaw.toUpperCase() === "LLL" ||
+          isNaN(tempNum) ||
           brixNum <= 0 ||
           brixNum < 7 ||
           brixNum > 35) {
@@ -2657,14 +2664,17 @@
       }
 
       parsed.push({
-        datetime: m[1],
+        datetime: datetimeStr,
+        sortKey: Number(datetimeStr.replace(/[^\d]/g, "")),
         brix: brixNum.toFixed(1),
-        temp: parseFloat(m[3]).toFixed(1)
+        temp: tempNum.toFixed(1)
       });
     });
 
-    // Se descartan las lecturas con error; se toman las últimas 10 lecturas válidas.
-    nfcReadings = parsed.slice(-10);
+    // Se descartan las lecturas con error; se ordenan por fecha/hora real y se toman las 10 más recientes.
+    nfcReadings = parsed
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .slice(-10);
 
     $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
     applyNfcToGrid();
