@@ -142,7 +142,7 @@
   <div class="card">
     <h4>II. Mediciones (10 frutos)</h4>
     <p style="font-size:13px; color:#64748b; margin-bottom:10px;">
-      Recolecta brix de los últimos 10 frutos medidos en los últimos 10 minutos; pasado ese tiempo ya no recolecta esos datos. Datos con error se ocultarán y no se transmiten al formulario.
+      Recolecta brix de los últimos 10 frutos válidos medidos. Datos con error se ocultarán y no se transmiten al formulario.
     </p>
 
     <div class="table-container">
@@ -2638,8 +2638,6 @@
   function processNfcData(text) {
     const lines = text.split(/\r?\n/);
     const re = /^(\d{4}\/\d{2}\/\d{2}\s+\d{2}:\d{2}:\d{2})\s*,\s*([^,]+)\s*,\s*([\d.]+)/;
-    const now = Date.now();
-    const tenMinAgo = now - 10 * 60 * 1000;
 
     const parsed = [];
     lines.forEach(line => {
@@ -2658,22 +2656,15 @@
         return;
       }
 
-      const parsedTime = new Date(m[1].replace(/\//g, "-")).getTime();
-      if (isNaN(parsedTime)) return;
-
       parsed.push({
         datetime: m[1],
-        time: parsedTime,
         brix: brixNum.toFixed(1),
         temp: parseFloat(m[3]).toFixed(1)
       });
     });
 
-    // Solo se conservan lecturas de los últimos 10 minutos; se toman las 10 más recientes.
-    nfcReadings = parsed
-      .filter(r => r.time >= tenMinAgo)
-      .sort((a, b) => a.time - b.time)
-      .slice(-10);
+    // Se descartan las lecturas con error; se toman las últimas 10 lecturas válidas.
+    nfcReadings = parsed.slice(-10);
 
     $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
     applyNfcToGrid();
@@ -2681,7 +2672,7 @@
 
   function applyNfcToGrid() {
     if (nfcReadings.length === 0) {
-      return showErr("❌ No se encontraron lecturas válidas de los últimos 10 minutos en el NFC.");
+      return showErr("❌ No se encontraron lecturas válidas en el NFC.");
     }
 
     nfcReadings.forEach((reading, index) => {
