@@ -2664,7 +2664,7 @@
     });
 
     // Se descartan las lecturas con error; se toman las últimas 10 lecturas válidas.
-    nfcReadings = parsed.slice(0, 10);
+    nfcReadings = parsed.slice(-10);
 
     $("nfcCount").value = `${nfcReadings.length} lecturas válidas`;
     applyNfcToGrid();
